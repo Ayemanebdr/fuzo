@@ -9,24 +9,17 @@ Application mobile (PWA) pour jouer à deux, même à des milliers de kilomètre
 Sans configuration, l'appli tourne en **mode démo** : deux joueurs sur le même téléphone
 (bascule en haut de l'écran). Tu peux aussi forcer la démo avec `?demo` à la fin de l'adresse.
 
-## Brancher Firebase (≈ 5 minutes, gratuit)
-1. Va sur https://console.firebase.google.com → **Ajouter un projet** (nom : `fuseau`, Google Analytics inutile).
-2. **Authentication** → Commencer → **E-mail/Mot de passe** → Activer → Enregistrer.
-3. **Firestore Database** → Créer une base → mode **production** → région `eur3 (europe-west)`.
-4. Onglet **Règles** de Firestore → colle le contenu de `firestore.rules` → **Publier**.
-5. ⚙️ Paramètres du projet → **Vos applications** → icône `</>` (Web) → nom `fuseau` → **Enregistrer**.
-   Copie l'objet `firebaseConfig` affiché et colle-le dans `firebase-config.js` :
-   ```js
-   export const firebaseConfig = { apiKey: "…", authDomain: "…", projectId: "…", storageBucket: "…", messagingSenderId: "…", appId: "…" };
-   ```
-6. Authentication → **Paramètres** → **Domaines autorisés** → ajoute `ayemanebdr.github.io`.
-
-Ces clés ne sont pas secrètes : c'est normal qu'elles soient dans le code. La sécurité vient des règles Firestore.
+## En ligne
+- Appli : https://ayemanebdr.github.io/fuzo/ (GitHub Pages, branche `main`)
+- Données : Firebase / Firestore, projet `fuzo-855ba`, base `(default)` en Europe (`eur3`), formule gratuite Spark.
+- Pas de compte e-mail : chaque téléphone reçoit une **clé Fuzo** secrète (Profil → Ma clé Fuzo) pour retrouver son profil ailleurs. Le duo est relié par un code de 10 caractères.
+- Sécurité (`firestore.rules`) : impossible de lister les profils ou les duos ; il faut connaître la clé ou le code. Gardez-les pour vous deux.
 
 ## Utilisation
-1. Chacun crée son compte, puis son profil (avatar illustré ou photo).
-2. L'un crée le duo et partage le code (ou le lien). L'autre l'entre : vous êtes reliés.
+1. Chacun ouvre le lien, crée son profil (avatar illustré ou photo).
+2. L'un crée le duo et partage le code ou le lien ; l'autre l'entre.
 3. Installez l'appli : Safari → Partager → *Sur l'écran d'accueil* (iPhone) ou Chrome → ⋮ → *Installer l'application* (Android).
+4. Notifications appli fermée : Profil → Notifications → Activer, puis abonnez-vous au code dans l'appli gratuite **ntfy**.
 
 ## Structure
 - `index.html`, `css/app.css`, `js/app.js` : l'appli (écrans, chat, profils, rendez-vous)
