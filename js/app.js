@@ -3,7 +3,7 @@ import { makeBackend, makeLocal } from './backend.js';
 import { makeBot, BOT_ID, BOT_GAMES, BOT_PROFILE } from './bot.js';
 import { makeGames, esc, shuffle } from './games.js';
 import { WORLDS, ORDER, LOGO, HERO } from './worlds.js';
-import { AVATARS } from './avatars.js';
+import { AVATARS, avUrl } from './avatars.js';
 import { SPRITE } from './sprite.js';
 import { makeMusic } from './music.js';
 import { DEVCATS, DECKS } from './content.js';
@@ -16,7 +16,7 @@ const ic = (n, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href
 const now = () => Date.now();
 const rid = () => now().toString(36) + Math.random().toString(36).slice(2, 7);
 const COLORS = ['#8d7bea', '#f0745f', '#3bb5a0', '#f3b94d', '#62a8e5', '#ef8fb3'];
-const AV_TABS = [['adv', 'Aventuriers'], ['smile', 'Sourires'], ['micah', 'Portraits'], ['peeps', 'Croquis'], ['photo', 'Ma photo']];
+const AV_TABS = [['fz', 'Fuzo'], ['adv', 'Aventuriers'], ['smile', 'Sourires'], ['micah', 'Portraits'], ['peeps', 'Croquis'], ['photo', 'Ma photo']];
 const REACTS = [['heart', '#f0745f'], ['fire', '#f3b94d'], ['clap', '#8d7bea'], ['smiley_wink', '#3bb5a0'], ['smiley_x', '#62a8e5'], ['star', '#f3b94d'], ['thumb', '#ef8fb3'], ['brain', '#8d7bea']];
 const myTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const cityOf = tz => tz ? String(tz).split('/').pop().replace(/_/g, ' ') : '';
@@ -40,7 +40,7 @@ const routeName = () => (location.hash.replace(/^#\/?/, '').split('/')[0]) || 'h
 const routeArg = () => location.hash.replace(/^#\/?/, '').split('/')[1] || '';
 const go = h => { if (location.hash !== h) location.hash = h; else render(); };
 
-function avatarSrc(uid) { const p = uid === S.me ? S.prof || {} : P(uid); const a = p.avatar; if (a && a.t === 'photo' && a.d) return a.d; return `assets/avatars/${(a && a.id) || 'adv-1'}.svg`; }
+function avatarSrc(uid) { const p = uid === S.me ? S.prof || {} : P(uid); const a = p.avatar; if (a && a.t === 'photo' && a.d) return a.d; return avUrl((a && a.id) || 'm-fz-1'); }
 function av(uid, cls = 'sm', dot = false) { const p = uid === S.me ? S.prof || {} : P(uid); return `<span class="av ${cls}" style="--rc:${esc(p.col || '#e9e2f9')}"><img src="${esc(avatarSrc(uid))}" alt="" loading="lazy">${dot ? `<i class="dot ${online(uid) || uid === S.me ? 'on' : ''}"></i>` : ''}</span>`; }
 
 /* ================= sons, vibrations, effets ================= */
@@ -348,16 +348,16 @@ function authView() {
   return h + '</div>';
 }
 function editProfileView(first) {
-  const p = S.prof || {}; const f = S.ui.pf || (S.ui.pf = { sex: p.sex || '', avatar: p.avatar || null, col: p.col || COLORS[0], tab: p.avatar && p.avatar.t === 'photo' ? 'photo' : 'adv' });
-  const cur = !f.avatar ? 'assets/avatars/bot-1.svg' : f.avatar.t === 'photo' ? f.avatar.d : `assets/avatars/${f.avatar.id}.svg`;
+  const p = S.prof || {}; const f = S.ui.pf || (S.ui.pf = { sex: p.sex || '', avatar: p.avatar || null, col: p.col || COLORS[0], tab: p.avatar && p.avatar.t === 'photo' ? 'photo' : (p.avatar && p.avatar.id && p.avatar.id.split('-')[1]) || 'fz' });
+  const cur = !f.avatar ? 'assets/avatars/bot-1.svg' : f.avatar.t === 'photo' ? f.avatar.d : avUrl(f.avatar.id);
   let h = first ? `<div class="auth-hero" style="margin-top:-6px">${HERO}</div><h1 class="wm-big center" style="display:flex;justify-content:center">${WORDMARK}</h1><p class="center muted" style="font-weight:700;margin:6px 0 14px">Des jeux à deux, peu importe les kilomètres.</p>` : '';
   h += `<div class="gbar">${first ? '<span></span>' : `<button class="ib" data-act="canceledit">${ic('x')}</button>`}<div class="gname" style="color:var(--ink)">${first ? 'Crée ton profil' : 'Mon profil'}</div><span style="width:42px"></span></div>`;
-  h += `<form data-form="profile"><label class="lbl" style="margin-top:4px">Je suis…</label><div class="sexpick"><button type="button" class="${f.sex === 'm' ? 'on' : ''}" data-act="sexpick" data-s="m"><img src="assets/avatars/m-peeps-1.svg" alt="">Un homme</button><button type="button" class="${f.sex === 'f' ? 'on' : ''}" data-act="sexpick" data-s="f"><img src="assets/avatars/f-smile-2.svg" alt="">Une femme</button></div>`;
+  h += `<form data-form="profile"><label class="lbl" style="margin-top:4px">Je suis…</label><div class="sexpick"><button type="button" class="${f.sex === 'm' ? 'on' : ''}" data-act="sexpick" data-s="m"><img src="assets/avatars/m-fz-1.webp" alt="">Un homme</button><button type="button" class="${f.sex === 'f' ? 'on' : ''}" data-act="sexpick" data-s="f"><img src="assets/avatars/f-fz-1.webp" alt="">Une femme</button></div>`;
   if (!f.sex) return h + `<p class="hint-txt">Choisis pour voir les personnages qui te correspondent.</p></form>`;
   h += `<div class="center mt"><span class="av xl" style="--rc:${esc(f.col)}"><img src="${esc(cur)}" alt=""></span></div>`;
   h += `<div class="tabs">${AV_TABS.map(([k, l]) => `<button type="button" class="${f.tab === k ? 'on' : ''}" data-act="avtab" data-t="${k}">${l}</button>`).join('')}</div>`;
   if (f.tab === 'photo') h += `<div class="card mt center"><p style="font-weight:700">Choisis une photo de toi.</p><p class="muted small" style="font-weight:600;margin-top:4px">Elle est recadrée en carré et allégée automatiquement.</p><label class="btn primary mt" style="display:inline-flex">${ic('camera')} Choisir une photo<input type="file" accept="image/*" id="photoIn" hidden></label></div>`;
-  else h += `<div class="avgrid">${AVATARS.filter(a => a.startsWith(f.sex + '-' + f.tab + '-')).map(a => `<button type="button" class="${f.avatar.id === a ? 'on' : ''}" data-act="avpick" data-id="${a}"><img src="assets/avatars/${a}.svg" alt="" loading="lazy"></button>`).join('')}</div>`;
+  else h += `<div class="avgrid">${AVATARS.filter(a => a.startsWith(f.sex + '-' + f.tab + '-')).map(a => `<button type="button" class="${f.avatar.id === a ? 'on' : ''}" data-act="avpick" data-id="${a}"><img src="${avUrl(a)}" alt="" loading="lazy"></button>`).join('')}</div>`;
   h += `<label class="lbl">Ton prénom ou pseudo</label><input class="field" name="name" maxlength="18" required value="${esc(p.name || '')}" placeholder="Ex. Aye">`;
   h += `<label class="lbl">Ta couleur</label><div class="cols">${COLORS.map(c => `<button type="button" class="${f.col === c ? 'on' : ''}" style="--c:${c}" data-act="colpick" data-c="${c}"></button>`).join('')}</div>`;
   h += `<label class="lbl">Ta ville</label><input class="field" name="city" maxlength="30" value="${esc(p.city || cityOf(myTz()))}">`;
@@ -505,7 +505,7 @@ const ACT = {
   auth: d => { S.ui.auth = d.m; S.ui.err = ''; sfx('tap'); render(); },
   editprof: () => { S.ui.sheet = null; S.ui.pf = null; S.ui.editing = true; render(); },
   canceledit: () => { S.ui.editing = false; S.ui.pf = null; render(); },
-  sexpick: d => { const f = S.ui.pf; f.sex = d.s; if (!f.avatar || (f.avatar.t === 'preset' && !f.avatar.id.startsWith(d.s + '-'))) f.avatar = { t: 'preset', id: d.s + '-adv-1' }; if (f.tab === 'photo' && f.avatar.t !== 'photo') f.tab = 'adv'; sfx('pop'); render(); },
+  sexpick: d => { const f = S.ui.pf; f.sex = d.s; if (!f.avatar || (f.avatar.t === 'preset' && !f.avatar.id.startsWith(d.s + '-'))) f.avatar = { t: 'preset', id: d.s + '-fz-1' }; if (f.tab === 'photo' && f.avatar.t !== 'photo') f.tab = 'fz'; sfx('pop'); render(); },
   avtab: d => { S.ui.pf.tab = d.t; sfx('tap'); render(); },
   avpick: d => { S.ui.pf.avatar = { t: 'preset', id: d.id }; sfx('pop'); render(); },
   colpick: d => { S.ui.pf.col = d.c; sfx('tap'); render(); },
@@ -516,7 +516,7 @@ const ACT = {
   dologout: () => S.B.signOut(),
   confirmok: () => { const a = S.ui.confirm && S.ui.confirm.a; S.ui.sheet = null; S.ui.confirm = null; render(); a && ACT[a](); },
   demoas: d => { S.B.switchUser(d.u); S.ui.sheet = null; S.done = new Set(); if (routeName() === 'partie') openGame(routeArg()); },
-  resetdemo: () => { S.B.resetDemo(); LS.del('fuzo-demo-seeded-v3'); location.reload(); },
+  resetdemo: () => { S.B.resetDemo(); LS.del('fuzo-demo-seeded-v4'); location.reload(); },
 };
 const FORMS = {
   tele: f => { const v = f.v.value.trim(); if (v) G.tele.submit(S.g, v); },
@@ -570,18 +570,18 @@ setInterval(() => { if (!document.hidden && ['home', 'chat', 'profil'].includes(
 
 /* ================= démarrage ================= */
 async function seedDemo(B) {
-  if (LS.get('fuzo-demo-seeded-v3')) return;
-  await B.set('users/demo-1', { name: 'Aye', sex: 'm', avatar: { t: 'preset', id: 'm-peeps-1' }, col: '#8d7bea', city: 'Lyon', tz: 'Europe/Paris', bio: 'Toujours partant pour une revanche', fav: 'p4', duo: 'DEMO42', seen: now() });
-  await B.set('users/demo-2', { name: 'Love', sex: 'f', avatar: { t: 'preset', id: 'f-smile-2' }, col: '#f0745f', city: 'Ottawa', tz: 'America/Toronto', bio: 'Reine du Croquis', fav: 'cq', duo: 'DEMO42', seen: now() });
+  if (LS.get('fuzo-demo-seeded-v4')) return;
+  await B.set('users/demo-1', { name: 'Aye', sex: 'm', avatar: { t: 'preset', id: 'm-fz-0' }, col: '#8d7bea', city: 'Lyon', tz: 'Europe/Paris', bio: 'Toujours partant pour une revanche', fav: 'p4', duo: 'DEMO42', seen: now() });
+  await B.set('users/demo-2', { name: 'Love', sex: 'f', avatar: { t: 'preset', id: 'f-fz-1' }, col: '#f0745f', city: 'Ottawa', tz: 'America/Toronto', bio: 'Reine du Croquis', fav: 'cq', duo: 'DEMO42', seen: now() });
   await B.set('duos/DEMO42', { members: ['demo-1', 'demo-2'], at: now() });
   await B.add('duos/DEMO42/msgs', { t: 'text', from: 'demo-2', text: 'Coucou ! On teste Fuzo ce soir ?', at: now() - 3600000 });
-  LS.set('fuzo-demo-seeded-v3', '1');
+  LS.set('fuzo-demo-seeded-v4', '1');
 }
 function splash() {
   if (location.search.includes('debug') || sessionStorage.getItem('fuzo-splash')) return;
   try { sessionStorage.setItem('fuzo-splash', '1'); } catch (e) { }
   const el = document.createElement('div'); el.id = 'splash';
-  el.innerHTML = `<div class="sp-sky"><i></i><i></i><i></i><i></i><i></i></div><div class="sp-stage"><img class="sp-a" src="assets/avatars/m-peeps-1.svg" alt=""><svg class="sp-arc" viewBox="0 0 200 80"><path d="M10 70Q100 -10 190 70" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 7"/></svg><img class="sp-b" src="assets/avatars/f-smile-2.svg" alt=""><div class="sp-heart">${ic('heart')}</div></div><div class="sp-word">${'Fuzo'.split('').map((c, i) => `<span style="animation-delay:${.55 + i * .09}s">${c}</span>`).join('')}</div><p class="sp-tag">Des jeux à deux, peu importe la distance</p>`;
+  el.innerHTML = `<div class="sp-sky"><i></i><i></i><i></i><i></i><i></i></div><div class="sp-stage"><img class="sp-a" src="assets/avatars/m-fz-0.webp" alt=""><svg class="sp-arc" viewBox="0 0 200 80"><path d="M10 70Q100 -10 190 70" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 7"/></svg><img class="sp-b" src="assets/avatars/f-fz-1.webp" alt=""><div class="sp-heart">${ic('heart')}</div></div><div class="sp-word">${'Fuzo'.split('').map((c, i) => `<span style="animation-delay:${.55 + i * .09}s">${c}</span>`).join('')}</div><p class="sp-tag">Des jeux à deux, peu importe la distance</p>`;
   document.body.appendChild(el);
   const end = () => { el.classList.add('out'); setTimeout(() => el.remove(), 500); };
   el.addEventListener('click', end); setTimeout(end, 2600);

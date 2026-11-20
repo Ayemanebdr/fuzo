@@ -44,7 +44,7 @@ label.lbl{display:block;font-weight:800;font-size:14px;margin:16px 0 7px}
 .tacts{display:flex;gap:8px}
 /* avatars */
 .av{position:relative;flex:none;border-radius:38%;overflow:visible;background:#eee;display:inline-block}
-.av img{width:100%;height:100%;object-fit:cover;border-radius:38%;display:block;box-shadow:0 0 0 3px #fff,0 0 0 4.5px var(--rc,#e9e2f9)}
+.av img{width:100%;height:100%;object-fit:cover;border-radius:38%;display:block;background:var(--avbg,#f3eefc);box-shadow:0 0 0 3px #fff,0 0 0 4.5px var(--rc,#e9e2f9)}
 .av.xs{width:26px;height:26px}.av.sm{width:40px;height:40px}.av.md{width:54px;height:54px}.av.lg{width:78px;height:78px}.av.xl{width:112px;height:112px}
 .av .dot{position:absolute;right:-3px;bottom:-3px;width:15px;height:15px;border-radius:50%;background:#c8c3d4;border:3px solid #fff}
 .av .dot.on{background:#5ccf78;animation:pulse 2s infinite}
@@ -295,7 +295,7 @@ body.inchat #app{padding-bottom:calc(96px + var(--safe-b))}
 .cat:after{content:"";position:absolute;right:-20px;top:-20px;width:70px;height:70px;border-radius:50%;background:var(--c);opacity:.14}
 .avgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
 .avgrid button{border:0;padding:0;background:none;cursor:pointer;border-radius:30%;aspect-ratio:1;position:relative}
-.avgrid img{width:100%;height:100%;border-radius:30%;display:block}
+.avgrid img{width:100%;height:100%;border-radius:30%;display:block;background:#f3eefc}
 .avgrid button.on img{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--pri)}
 .tabs{display:flex;gap:6px;overflow-x:auto;padding:2px;margin-top:10px;scrollbar-width:none}
 .tabs button{border:0;border-radius:99px;padding:7px 13px;font-weight:800;background:#fff;box-shadow:0 0 0 1.5px var(--line);cursor:pointer;white-space:nowrap;font-size:14px}
@@ -367,7 +367,7 @@ body.has-demo .chat-h{padding-top:calc(46px + var(--safe-t))}
 .sp-sky i:nth-child(1){top:14%;left:18%}.sp-sky i:nth-child(2){top:22%;left:80%;animation-delay:.4s}.sp-sky i:nth-child(3){top:70%;left:12%;animation-delay:.8s}.sp-sky i:nth-child(4){top:78%;left:84%;animation-delay:.2s}.sp-sky i:nth-child(5){top:10%;left:55%;animation-delay:1s}
 @keyframes tw{50%{opacity:.15;transform:scale(.5)}}
 .sp-stage{position:relative;width:260px;height:120px}
-.sp-stage img{position:absolute;bottom:0;width:78px;height:78px;border-radius:30%;box-shadow:0 0 0 4px #fff,0 10px 24px rgba(0,0,0,.25)}
+.sp-stage img{position:absolute;bottom:0;width:78px;height:78px;border-radius:30%;background:#fbf7f0;box-shadow:0 0 0 4px #fff,0 10px 24px rgba(0,0,0,.25)}
 .sp-a{left:0;animation:spl .7s cubic-bezier(.2,1.4,.4,1) both}
 .sp-b{right:0;animation:spr .7s cubic-bezier(.2,1.4,.4,1) .12s both}
 @keyframes spl{from{transform:translateX(-140px) rotate(-20deg);opacity:0}}
@@ -386,5 +386,5 @@ body.has-demo .chat-h{padding-top:calc(46px + var(--safe-t))}
 
 .sexpick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .sexpick button{border:2px solid var(--line);background:#fff;border-radius:20px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:'Baloo 2';font-weight:700;font-size:17px;cursor:pointer;box-shadow:0 3px 0 var(--line)}
-.sexpick img{width:64px;height:64px;border-radius:30%}
+.sexpick img{width:64px;height:64px;border-radius:30%;background:#f3eefc}
 .sexpick button.on{border-color:var(--pri);background:#f1edfd;box-shadow:0 3px 0 var(--pri)}

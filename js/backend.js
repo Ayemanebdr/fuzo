@@ -49,7 +49,7 @@ export function makeLocal(KEY) {
 
 /* ================= Mode démo ================= */
 function demoBackend() {
-  const L = makeLocal('fuzo-demo-v3');
+  const L = makeLocal('fuzo-demo-v4');
   let me = LS.get('fuseau-demo-me') || 'demo-1';
   const userCbs = new Set();
   return Object.assign({}, L, {
