@@ -54,7 +54,7 @@ function initAudio() {
   for (const k of ['coin', 'jump', 'land', 'place', 'place2', 'toggle', 'remove', 'rotate']) fetch(`assets/sounds/${k}.mp3`).then(r => r.arrayBuffer()).then(b => SND.ctx.decodeAudioData(b)).then(d => { SND.buf[k] = d; }).catch(() => { });
 }
 function unlockAudio() {
-  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+  try { if (navigator.audioSession && !S.ui.rec && !S.recBusy) navigator.audioSession.type = 'playback'; } catch (e) { }
   initAudio(); const c = SND.ctx; if (!c) return;
   if (c.state !== 'running') c.resume().then(() => render()).catch(() => { });
   if (!SND.unlocked) { SND.unlocked = true; try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { }
@@ -311,13 +311,15 @@ const REC = {};
 async function recStart() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toast("Les notes vocales ne sont pas disponibles sur ce navigateur"); return; }
   if (VA) { VA.pause(); VA = null; S.ui.playing = null; }
-  let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { S.ui.micErr = e && e.name; S.ui.sheet = 'mic'; render(); return; }
+  const sess = t => { try { if (navigator.audioSession) navigator.audioSession.type = t; } catch (e) { } };
+  S.recBusy = true; sess('play-and-record');
+  let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { S.recBusy = false; sess('playback'); S.ui.micErr = e && e.name; S.ui.sheet = 'mic'; render(); return; }
   const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(x => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(x)) || '';
   let mr; try { mr = new MediaRecorder(st, Object.assign({ audioBitsPerSecond: 32000 }, mime ? { mimeType: mime } : {})); } catch (e) { mr = new MediaRecorder(st); }
   Object.assign(REC, { ch: [], size: 0, mr, st, t0: Date.now(), send: false });
   mr.ondataavailable = e => { if (e.data && e.data.size) { REC.ch.push(e.data); REC.size += e.data.size; if (REC.size > 640000) recStop(true); } };
   mr.onstop = async () => {
-    st.getTracks().forEach(x => x.stop()); clearInterval(REC.iv); const dur = (Date.now() - REC.t0) / 1000; S.ui.rec = false; render();
+    st.getTracks().forEach(x => x.stop()); clearInterval(REC.iv); S.recBusy = false; sess('playback'); const dur = (Date.now() - REC.t0) / 1000; S.ui.rec = false; render();
     if (!REC.send) return; if (dur < 0.8) { toast('Note trop courte'); return; }
     const blob = new Blob(REC.ch, { type: mr.mimeType || mime || 'audio/webm' }); if (blob.size > 720000) { toast('Note trop longue'); return; }
     sendMsg({ t: 'voice', d: await blobToData(blob), dur: Math.round(dur * 10) / 10 }, '🎤 Note vocale');
