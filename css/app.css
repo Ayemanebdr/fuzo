@@ -388,3 +388,14 @@ body.has-demo .chat-h{padding-top:calc(46px + var(--safe-t))}
 .sexpick button{border:2px solid var(--line);background:#fff;border-radius:20px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:'Baloo 2';font-weight:700;font-size:17px;cursor:pointer;box-shadow:0 3px 0 var(--line)}
 .sexpick img{width:64px;height:64px;border-radius:30%;background:#f3eefc}
 .sexpick button.on{border-color:var(--pri);background:#f1edfd;box-shadow:0 3px 0 var(--pri)}
+
+.inwrap{position:relative;display:flex}
+.inwrap .field{padding-right:48px}
+.emobtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:24px;color:var(--muted);cursor:pointer;padding:6px;display:grid}
+.emobar{display:none}
+.emobar.on{max-width:536px;margin:0 auto 8px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;background:#fff;border-radius:20px;padding:8px;box-shadow:var(--sh)}
+.emobar.on{display:grid}
+.emobar button{border:0;background:none;font-size:24px;padding:4px 0;cursor:pointer;border-radius:10px}
+.emobar button:active{background:#f1edfd}
+.rdvgrid{display:grid;grid-template-columns:1fr;gap:0;margin-top:6px}
+.rdvgrid .field{min-width:0;width:100%;-webkit-appearance:none;appearance:none;min-height:52px}

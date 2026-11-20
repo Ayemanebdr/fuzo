@@ -51,11 +51,18 @@ function initAudio() {
   SND.fx = SND.ctx.createGain(); SND.fx.connect(SND.ctx.destination); SND.mus = SND.ctx.createGain(); SND.mus.connect(SND.ctx.destination); applyVolumes(); setTimeout(render, 50);
   for (const k of ['coin', 'jump', 'land', 'place', 'place2', 'toggle', 'remove', 'rotate']) fetch(`assets/sounds/${k}.mp3`).then(r => r.arrayBuffer()).then(b => SND.ctx.decodeAudioData(b)).then(d => { SND.buf[k] = d; }).catch(() => { });
 }
-document.addEventListener('pointerdown', () => { initAudio(); if (SND.ctx && SND.ctx.state === 'suspended') SND.ctx.resume(); }, { capture: true });
+function unlockAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+  initAudio(); const c = SND.ctx; if (!c) return;
+  if (c.state !== 'running') c.resume().then(() => render()).catch(() => { });
+  if (!SND.unlocked) { SND.unlocked = true; try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { }
+    try { const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='); a.play().catch(() => { }); } catch (e) { } }
+}
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, unlockAudio, { capture: true, passive: true });
 function play(k, vol = .7, rate = 1) { const c = SND.ctx, b = SND.buf[k]; if (!c || !b) return; const s = c.createBufferSource(), g = c.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(SND.fx); s.start(); }
 function synth(seq, type = 'triangle', vol = .16) { const c = SND.ctx; if (!c) return; const t = c.currentTime; let o = 0; for (const [f, d] of seq) { const os = c.createOscillator(), g = c.createGain(); os.type = type; os.frequency.value = f; g.gain.setValueAtTime(.0001, t + o); g.gain.exponentialRampToValueAtTime(vol, t + o + .015); g.gain.exponentialRampToValueAtTime(.0001, t + o + d); os.connect(g); g.connect(SND.fx); os.start(t + o); os.stop(t + o + d + .03); o += d * .85; } }
 const MUSIC = makeMusic(() => SND.ctx, () => SND.mus);
-function updateMusic(world) { if (!SND.ctx) return; const r = routeName(); const m = !S.set.music || document.hidden || !S.prof ? null : world || (['home', 'jeux', 'chat', 'profil'].includes(r) ? 'home' : null); MUSIC.set(m); }
+function updateMusic(world) { if (!SND.ctx || SND.ctx.state !== 'running') return; const r = routeName(); const m = !S.set.music || document.hidden || !S.prof ? null : world || (['home', 'jeux', 'chat', 'profil'].includes(r) ? 'home' : null); MUSIC.set(m); }
 function sfx(k) {
   if (!S.set.sound) return;
   try {
@@ -247,21 +254,23 @@ function statsHTML() {
   return `<div class="sect"><h2>Vos stats</h2><small class="muted" style="font-weight:800">${n} partie${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}</small></div><div class="stats"><div class="stat">${ic('trophy')}<b>${a} – ${b}</b><small>Duels gagnés</small></div><div class="stat">${ic('brain')}<b>${te}/8</b><small>Record télépathie</small></div><div class="stat">${ic('brush')}<b>${cq}</b><small>Record croquis</small></div></div>`;
 }
 function worldCard(k, wide) { const W = WORLDS[k]; return `<button class="wcard ${wide ? 'wide' : ''}" data-act="goto" data-h="#/monde/${k}"><div class="scene" style="background:${W.tint}">${W.scene}<span class="chip">${esc(W.tag)}</span></div><div class="wt"><h3>${esc(W.name)}</h3><p>${esc(W.pitch)}</p></div></button>`; }
-function gamesView() { return topBar('Les jeux') + `<p class="muted" style="font-weight:700;margin:-4px 2px 14px">7 univers à explorer à deux. Touche un monde pour y entrer.</p><div class="worlds">${ORDER.map((k, i) => worldCard(k, i === 0)).join('')}</div>`; }
+function gamesView() { return topBar('Les jeux') + `<p class="muted" style="font-weight:700;margin:-4px 2px 14px">7 univers à explorer à deux, ou contre Kobi le robot. Touche un monde pour y entrer.</p><div class="worlds">${ORDER.map((k, i) => worldCard(k, i === 0)).join('')}</div>`; }
 function worldView(k) {
   const W = WORLDS[k]; if (!W) return homeView(); const op = partner();
   const hist = S.results.filter(r => r.t === k).slice(0, 5);
   const live = S.games.filter(g => g.type === k && !g.over);
   let h = `<div class="whero" style="background:${W.tint}">${W.scene}<button class="ib back" data-act="back">${ic('back')}</button></div><div class="wtitle"><div class="stamp"><small>${esc(W.place)}</small><h1>${esc(W.name)}</h1></div></div>`;
-  h += `<p class="center" style="font-weight:700;margin-top:14px;font-size:17px">${esc(W.pitch)}</p><div class="how">${W.how.map(([i, t]) => `<div>${ic(i)}<span>${esc(t)}</span></div>`).join('')}</div>`;
+  h += `<p class="center" style="font-weight:700;margin-top:14px;font-size:17px">${esc(W.pitch)}</p>`;
   if (live.length) h += `<div class="actions"><button class="btn world block big" data-act="goto" data-h="#/partie/${live[0].id}">${ic('play')} Reprendre la partie</button></div>`;
   h += `<div class="actions"><button class="btn ${live.length ? 'ghost' : 'world'} block big" data-act="launch" data-t="${k}" ${op ? '' : 'disabled'}>${ic(live.length ? 'plus' : 'play')} ${live.length ? 'Nouvelle partie' : `Jouer avec ${esc(nm(op))}`}</button></div>`;
   if (BOT_GAMES.includes(k)) {
     const sl = S.soloGames.find(g => g.type === k && !g.over);
     h += `<div class="kobi">${av(BOT_ID, 'md')}<div class="grow"><b>Pas de duo dispo ?</b><small>Entraîne-toi contre Kobi, le robot de Fuzo.</small></div></div><div class="actions" style="margin-top:10px">${sl ? `<button class="btn ghost" data-act="goto" data-h="#/solo/${sl.id}">${ic('play')} Reprendre contre Kobi</button>` : ''}<button class="btn ${op ? 'ghost' : 'world'}" data-act="launch" data-t="${k}" data-solo="1">${ic('games')} ${sl ? 'Nouvelle' : 'Jouer'} contre Kobi</button></div>`;
   }
+
   if (!op) h += `<p class="hint-txt">Invite d'abord ton duo pour jouer à deux.</p>`;
   else h += `<p class="hint-txt">${online(op) ? `${esc(nm(op))} est en ligne et recevra l'invitation tout de suite.` : `${esc(nm(op))} recevra l'invitation dans le chat et pourra jouer quand ça lui chante.`}</p>`;
+  h += `<div class="sect"><h2>Comment jouer</h2></div><div class="how" style="margin-top:0">${W.how.map(([i, t]) => `<div>${ic(i)}<span>${esc(t)}</span></div>`).join('')}</div>`;
   if (hist.length) h += `<div class="sect"><h2>Dernières parties</h2></div><div class="list">${hist.map(r => `<div class="item"><span class="av sm">${r.w ? `<img src="${esc(avatarSrc(r.w))}">` : `<span style="display:grid;place-items:center;width:40px;height:40px;border-radius:14px;background:${W.tint};color:${W.dark}">${ic(W.icon)}</span>`}</span><div class="grow"><b>${r.w ? (r.w === S.me ? 'Victoire !' : `Victoire de ${esc(nm(r.w))}`) : r.s !== undefined ? `Score : ${r.s}` : 'Égalité'}</b><small>${ago(r.at)}</small></div></div>`).join('')}</div>`;
   return h;
 }
@@ -292,7 +301,7 @@ function chatView() {
       h += `<div class="mcard ${side}" data-k="m-${m.id}-${m.st}"><div class="mc"><small>${mine ? 'Tu proposes un rendez-vous' : `${esc(nm(m.from))} propose un rendez-vous`} · ${t}</small><b>${W ? esc(W.name) : 'On joue ensemble !'}</b><div class="rdv-when">${ic('cal')} ${esc(fmtWhen(m.when, p.tz || myTz()))}</div>${optz ? `<small>Soit ${esc(fmtWhen(m.when, optz))} pour ${esc(nm(op))}</small>` : ''}${m.note ? `<p style="margin-top:6px;font-weight:600">« ${esc(m.note)} »</p>` : ''}<div class="actions">`;
       if (m.st === 'ok') h += `<span class="chip teal">${ic('check')} Accepté</span><button class="btn ghost sm" data-act="ics" data-id="${m.id}">${ic('download')} Agenda</button>`;
       else if (m.st === 'no') h += `<span class="chip grey">Refusé</span>`;
-      else if (mine) h += `<span class="chip mustard">En attente de réponse</span>`;
+      else if (mine) h += `<span class="chip mustard">En attente de réponse</span><button class="btn ghost sm" data-act="ics" data-id="${m.id}">${ic('download')} Agenda</button>`;
       else h += `<button class="btn teal sm" data-act="rdvans" data-id="${m.id}" data-v="ok">${ic('check')} Accepter</button><button class="btn ghost sm" data-act="rdvans" data-id="${m.id}" data-v="no">Refuser</button>`;
       h += `</div></div></div>`;
     }
@@ -300,7 +309,8 @@ function chatView() {
     else if (m.t === 'wizz') h += `<div class="sysmsg" data-k="m-${m.id}">${ic('vibrate')}<span>${mine ? 'Tu as envoyé un Wizz' : `${esc(nm(m.from))} t'a envoyé un Wizz`} · ${t}</span></div>`;
   }
   h += `</div>`;
-  const dock = `<div class="composer-bar"><form class="composer" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><input class="field grow" name="t" id="msgIn" maxlength="500" autocomplete="off" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Message…'}" ${op ? '' : 'disabled'}><button class="btn primary sq" ${op ? '' : 'disabled'} aria-label="Envoyer">${ic('send')}</button></form></div>`;
+  const EMO = ['😂','🥰','😍','😘','😎','🤣','😅','😭','🥺','😤','🙄','😴','🤔','😏','🔥','❤️','💜','👏','🙏','💪','🎉','✨','👀','💯'];
+  const dock = `<div class="composer-bar"><div class="emobar ${S.ui.emo ? 'on' : ''}">${S.ui.emo ? EMO.map(e => `<button type="button" data-act="emoins" data-e="${e}">${e}</button>`).join('') : ''}</div><form class="composer" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><div class="inwrap grow"><input class="field" name="t" id="msgIn" maxlength="500" autocomplete="off" enterkeyhint="send" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Écris un message…'}"><button type="button" class="emobtn" data-act="emotog" aria-label="Emojis">${ic('smile')}</button></div><button class="btn primary sq" aria-label="Envoyer">${ic('send')}</button></form></div>`;
   return { html: h, dock, after: () => scrollChat(true), update: () => scrollChat(false) };
 }
 let lastMsgCount = 0;
@@ -384,8 +394,8 @@ function sheetHTML() {
   else if (s === 'partner' && op) h = `${profileCard(op)}<div class="actions"><button class="btn primary" data-act="tab" data-h="#/chat">${ic('chat')} Écrire</button><button class="btn ghost" data-act="wizz">${ic('vibrate')} Wizz</button></div>`;
   else if (s === 'me') h = `${profileCard(S.me)}<div class="actions"><button class="btn primary" data-act="editprof">${ic('pencil')} Modifier</button></div>`;
   else if (s === 'rdv') {
-    const t0 = new Date(); const pad = n => String(n).padStart(2, '0'); const loc = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; const d = new Date(t0.getTime() + 2 * 3600000); d.setMinutes(0, 0, 0); const ds = loc(t0), dd = loc(d), hh = `${pad(d.getHours())}:00`;
-    h = `<h2>${ic('calplus')} Proposer un rendez-vous</h2><p class="muted mt" style="font-weight:600">Choisis l'heure chez toi, ${esc(op ? nm(op) : 'ton duo')} la verra à son heure.</p><form data-form="rdv"><div class="row mt"><div class="grow"><label class="lbl">Jour</label><input class="field" type="date" name="d" value="${dd}" min="${ds}" required></div><div style="width:42%"><label class="lbl">Heure (chez toi)</label><input class="field" type="time" name="h" value="${hh}" required></div></div><p class="muted small mt" id="rdvPrev" style="font-weight:700"></p><label class="lbl">Pour jouer à…</label><select class="field" name="g"><option value="">On verra sur le moment</option>${ORDER.map(k => `<option value="${k}">${esc(WORLDS[k].name)}</option>`).join('')}</select><label class="lbl">Un petit mot <span class="muted">(facultatif)</span></label><input class="field" name="n" maxlength="120" placeholder="Prépare-toi à perdre…"><button class="btn primary block big mt2" ${op ? '' : 'disabled'}>${ic('send')} Envoyer la proposition</button></form>`;
+    const t0 = new Date(); const pad = n => String(n).padStart(2, '0'); const loc = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; const d = new Date(t0); if (t0.getHours() >= 18) d.setDate(d.getDate() + 1); d.setHours(20, 0, 0, 0); const ds = loc(t0), dd = loc(d), hh = `${pad(d.getHours())}:00`;
+    h = `<h2>${ic('calplus')} Proposer un rendez-vous</h2><p class="muted mt" style="font-weight:600">Choisis l'heure chez toi, ${esc(op ? nm(op) : 'ton duo')} la verra à son heure.</p><form data-form="rdv"><div class="rdvgrid"><div><label class="lbl">Jour</label><input class="field" type="date" name="d" value="${dd}" min="${ds}" required></div><div><label class="lbl">Heure (chez toi)</label><input class="field" type="time" name="h" value="${hh}" required></div></div><p class="muted small mt" id="rdvPrev" style="font-weight:700"></p><label class="lbl">Pour jouer à…</label><select class="field" name="g"><option value="">On verra sur le moment</option>${ORDER.map(k => `<option value="${k}">${esc(WORLDS[k].name)}</option>`).join('')}</select><label class="lbl">Un petit mot <span class="muted">(facultatif)</span></label><input class="field" name="n" maxlength="120" placeholder="Prépare-toi à perdre…"><button class="btn primary block big mt2" ${op ? '' : 'disabled'}>${ic('send')} Envoyer la proposition</button></form>`;
   }
   else if (s === 'plus') h = `<h2>Envoyer…</h2><div class="col mt"><button class="btn block" data-act="sheet" data-s="rdv">${ic('calplus')} Une proposition de rendez-vous</button><button class="btn block" data-act="sheet" data-s="invite">${ic('games')} Une invitation à jouer</button><button class="btn block" data-act="wizz">${ic('vibrate')} Un Wizz</button></div><div class="reacts">${H.reactBar()}</div>`;
   else if (s === 'invite') h = `<h2>Inviter à jouer</h2><div class="worlds mt">${ORDER.map(k => { const W = WORLDS[k]; return `<button class="wcard" data-act="launch" data-t="${k}"><div class="scene" style="background:${W.tint};height:80px">${W.scene}</div><div class="wt"><h3 style="font-size:16px">${esc(W.name)}</h3></div></button>`; }).join('')}</div>`;
@@ -497,6 +507,8 @@ const ACT = {
   share: async () => { const url = location.origin + location.pathname + '?duo=' + S.code; const text = `Rejoins-moi sur Fuzo pour jouer ensemble ! Code du duo : ${S.code}`; try { if (navigator.share) { await navigator.share({ title: 'Fuzo', text, url }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(text + '\n' + url); toast('Lien copié !'); } catch (e) { toast('Code : ' + S.code); } },
   install: async () => { const e = S.installEvt; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { } S.installEvt = null; S.ui.sheet = null; render(); },
   noinstall: () => { try { LS.set('fuseau-noinstall', '1'); } catch (e) { } S.ui.sheet = null; render(); },
+  emotog: () => { S.ui.emo = !S.ui.emo; render(); },
+  emoins: d => { const i = $('#msgIn'); if (i) { i.value += d.e; i.focus(); } sfx('key'); },
   keycopy: async () => { try { await navigator.clipboard.writeText(S.me); toast('Clé copiée ! Garde-la en lieu sûr.'); } catch (e) { toast(S.me); } },
   ntfyon: () => { const A = 'abcdefghijkmnpqrstuvwxyz23456789'; const t = 'fuzo-' + Array.from({ length: 10 }, () => A[Math.random() * A.length | 0]).join(''); S.B.merge(`users/${S.me}`, { ntfy: t }); sfx('coin'); },
   ntfyoff: () => { S.B.merge(`users/${S.me}`, { ntfy: null }); },
@@ -521,7 +533,7 @@ const ACT = {
 const FORMS = {
   tele: f => { const v = f.v.value.trim(); if (v) G.tele.submit(S.g, v); },
   cq: f => { const v = f.v.value.trim(); if (!v) return; f.v.value = ''; G.cq.guess(S.g, v); },
-  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); notifyPartner(v, '#/chat', nm(S.me)); },
+  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; if (S.ui.emo) { S.ui.emo = false; render(); } S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); notifyPartner(v, '#/chat', nm(S.me)); },
   rdv: f => { const when = new Date(`${f.d.value}T${f.h.value}`).getTime(); if (!when || when < now() - 60000) { toast('Choisis une date à venir'); return; } S.B.add(duoPath('msgs'), { t: 'rdv', from: S.me, when, game: f.g.value || null, note: f.n.value.trim().slice(0, 120), st: 'open', at: now() }); { const op = partner(); notifyPartner(`${nm(S.me)} te propose un rendez-vous : ${fmtWhen(when, op && P(op).tz)}`, '#/chat'); } S.ui.sheet = null; sfx('send'); toast('Proposition envoyée'); go('#/chat'); },
   signup: f => authDo(() => S.B.signUp(f.email.value.trim(), f.pw.value)),
   login: f => authDo(() => S.B.signIn(f.email.value.trim(), f.pw.value)),
@@ -581,7 +593,7 @@ function splash() {
   if (location.search.includes('debug') || sessionStorage.getItem('fuzo-splash')) return;
   try { sessionStorage.setItem('fuzo-splash', '1'); } catch (e) { }
   const el = document.createElement('div'); el.id = 'splash';
-  el.innerHTML = `<div class="sp-sky"><i></i><i></i><i></i><i></i><i></i></div><div class="sp-stage"><img class="sp-a" src="assets/avatars/m-fz-0.webp" alt=""><svg class="sp-arc" viewBox="0 0 200 80"><path d="M10 70Q100 -10 190 70" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 7"/></svg><img class="sp-b" src="assets/avatars/f-fz-1.webp" alt=""><div class="sp-heart">${ic('heart')}</div></div><div class="sp-word">${'Fuzo'.split('').map((c, i) => `<span style="animation-delay:${.55 + i * .09}s">${c}</span>`).join('')}</div><p class="sp-tag">Des jeux à deux, peu importe la distance</p>`;
+  el.innerHTML = `<div class="sp-sky"><i></i><i></i><i></i><i></i><i></i></div><div class="sp-stage"><img class="sp-a" src="assets/avatars/m-fz-0.webp" alt=""><svg class="sp-arc" viewBox="0 0 200 80"><path d="M10 70Q100 -10 190 70" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 7"/></svg><img class="sp-b" src="assets/avatars/f-fz-1.webp" alt=""></div><div class="sp-word">${'Fuzo'.split('').map((c, i) => `<span style="animation-delay:${.55 + i * .09}s">${c}</span>`).join('')}</div><p class="sp-tag">Des jeux à deux, peu importe la distance</p>`;
   document.body.appendChild(el);
   const end = () => { el.classList.add('out'); setTimeout(() => el.remove(), 500); };
   el.addEventListener('click', end); setTimeout(end, 2600);
