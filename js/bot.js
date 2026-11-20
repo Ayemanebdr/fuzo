@@ -1,9 +1,11 @@
 // Kobi, le robot de Fuzo : un adversaire pour s'entraîner quand le duo n'est pas dispo.
 import { TELE, DEV, WORDS } from './content.js';
-import { win3, p4line, deobf } from './games.js';
+import { win3, p4line, deobf, obf, shuffle } from './games.js';
+import { MENS_BOT } from './content-new.js';
+import { placeFleet, SZ } from './games2.js';
 
 export const BOT_ID = 'bot';
-export const BOT_GAMES = ['tele', 'dev', 'mot', 'ut', 'p4'];
+export const BOT_GAMES = ['tele', 'dev', 'mot', 'ut', 'p4', 'quiz', 'mens', 'nav'];
 export const BOT_PROFILE = { name: 'Kobi', avatar: { t: 'preset', id: 'bot-1' }, col: '#62a8e5', city: 'Le Cloud', bio: 'Robot joueur, jamais fatigué', seen: 0 };
 
 const rnd = a => a[Math.random() * a.length | 0];
@@ -100,5 +102,56 @@ export function makeBot(api) {
     if (g.turn !== BOT_ID) return;
     later(`p${g.id}${g.data.last}`, think(800, 1600), () => { const n = api.g(); if (!n || n.id !== g.id || n.turn !== BOT_ID || n.over) return; api.G.p4.play(n, p4Move(n), BOT_ID); });
   }
-  return { tick(g) { if (!g || g.over || !g.players.includes(BOT_ID)) return; ({ tele, dev, mot, ut, p4 }[g.type] || (() => { }))(g); } };
+  /* --- Quiz : Kobi connaît environ 6 réponses sur 10 --- */
+  function quiz(g) {
+    if (g.phase !== 'answer') return;
+    const a = api.pdoc(BOT_ID).a; if (a && a.r === g.round) return;
+    const t = think(4, 15);
+    later(`q${g.id}${g.round}`, t * 1000, () => {
+      const n = api.g(); if (!n || n.id !== g.id || n.round !== g.round || n.phase !== 'answer') return;
+      const i = Math.random() < .6 ? 0 : 1 + (Math.random() * 3 | 0);
+      api.write({ a: { r: n.round, v: { i, t: Math.round(t * 10) / 10 } } });
+    });
+  }
+  /* --- Le Mensonge : affirmations de robot, devine au hasard --- */
+  const mensUsed = new Set();
+  function mens(g) {
+    const me = api.pdoc(BOT_ID);
+    if (g.phase === 'write' && !(me.m && me.m.r === g.round)) later(`mw${g.id}${g.round}`, think(2500, 5000), () => {
+      const n = api.g(); if (!n || n.id !== g.id || n.round !== g.round || n.phase !== 'write') return;
+      let k = Math.random() * MENS_BOT.length | 0, t = 0; while (mensUsed.has(k) && t++ < 30) k = Math.random() * MENS_BOT.length | 0; mensUsed.add(k);
+      const it = MENS_BOT[k], idx = shuffle([0, 1, 2]);
+      api.write({ m: { r: n.round, s: idx.map(i => it.s[i]), l: obf(String(idx.indexOf(it.l))) } });
+    });
+    if (g.phase === 'guess' && !(me.gu && me.gu.r === g.round)) later(`mg${g.id}${g.round}`, think(2500, 6000), () => {
+      const n = api.g(); if (!n || n.id !== g.id || n.round !== g.round || n.phase !== 'guess') return;
+      api.write({ gu: { r: n.round, v: Math.random() * 3 | 0 } });
+    });
+  }
+  /* --- Bataille navale : chasse en damier, puis achève les bateaux touchés --- */
+  function navMove(g) {
+    const me = g.players.find(p => p !== BOT_ID), b = g.data.sh[me];
+    const free = k => k >= 0 && k < SZ * SZ && b[k] === '.';
+    const nb = k => { const r = k / SZ | 0, c = k % SZ, o = []; if (r > 0) o.push(k - SZ); if (r < SZ - 1) o.push(k + SZ); if (c > 0) o.push(k - 1); if (c < SZ - 1) o.push(k + 1); return o; };
+    const hits = [...b].map((v, i) => v === 'x' ? i : -1).filter(i => i >= 0);
+    if (hits.length) {
+      if (hits.length >= 2) {
+        const sameRow = hits.every(h => (h / SZ | 0) === (hits[0] / SZ | 0)), sameCol = hits.every(h => h % SZ === hits[0] % SZ);
+        const lo = Math.min(...hits), hi = Math.max(...hits);
+        const opts = sameRow ? [lo - 1, hi + 1].filter(k => free(k) && (k / SZ | 0) === (lo / SZ | 0)) : sameCol ? [lo - SZ, hi + SZ].filter(free) : [];
+        if (opts.length) return opts[Math.random() * opts.length | 0];
+      }
+      const c = hits.flatMap(nb).filter(free); if (c.length) return c[Math.random() * c.length | 0];
+    }
+    const all = [...b].map((v, i) => v === '.' ? i : -1).filter(i => i >= 0);
+    const par = all.filter(k => ((k / SZ | 0) + k % SZ) % 2 === 0);
+    const pool = par.length && Math.random() < .85 ? par : all; return pool[Math.random() * pool.length | 0];
+  }
+  function nav(g) {
+    if (g.phase === 'place') { if (!api.pdoc(BOT_ID).ready) later(`np${g.id}`, think(800, 1600), () => api.write({ fl: obf(JSON.stringify(placeFleet())), ready: true })); return; }
+    if (g.turn !== BOT_ID) return;
+    const L = g.data.last || {};
+    later(`n${g.id}${L.u}${L.k}`, think(900, 1700), () => { const n = api.g(); if (!n || n.id !== g.id || n.turn !== BOT_ID || n.over) return; api.G.nav.shoot(n, navMove(n), BOT_ID); });
+  }
+  return { tick(g) { if (!g || g.over || !g.players.includes(BOT_ID)) return; ({ tele, dev, mot, ut, p4, quiz, mens, nav }[g.type] || (() => { }))(g); } };
 }

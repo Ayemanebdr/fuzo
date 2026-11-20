@@ -2,7 +2,8 @@
 import { makeBackend, makeLocal } from './backend.js';
 import { makeBot, BOT_ID, BOT_GAMES, BOT_PROFILE } from './bot.js';
 import { makeGames, esc, shuffle } from './games.js';
-import { WORLDS, ORDER, LOGO, HERO } from './worlds.js';
+import { WORLDS, ORDER, GROUPS, LOGO, HERO } from './worlds.js';
+import { addGames } from './games2.js';
 import { AVATARS, avUrl } from './avatars.js';
 import { SPRITE } from './sprite.js';
 import { makeMusic } from './music.js';
@@ -120,9 +121,10 @@ const H = {
     return `<div class="score">${side(S.me)}<div class="mid">${esc(o.label || '')}</div>${side(op, 1)}</div>`;
   },
   notify: msg => { const g = S.g; if (g && !S.gSolo) notifyPartner(`${nm(S.me)} ${msg}`, `#/partie/${g.id}`, `Fuzo · ${WORLDS[g.type].name}`); },
+  col: uid => P(uid).col || '#8d7bea',
   reactBar: () => REACTS.map(([k, c]) => `<button class="rb" style="--c:${c}" data-act="react" data-e="${k}">${ic(k)}</button>`).join(''),
 };
-const G = makeGames(H);
+const G = makeGames(H); addGames(G, H);
 const BOT = makeBot({ G, g: () => S.g, pdoc: uid => S.gp[uid] || {}, write: p => S.g && S.SB.merge(`solo/games/${S.g.id}/p/${BOT_ID}`, p) });
 
 async function newGame(type, opts = {}, solo = false) {
@@ -205,7 +207,7 @@ function changed() {
   render(); const g = S.g;
   if (g && !g.over && g.players && g.players.includes(S.me) && G[g.type] && G[g.type].auto) { try { G[g.type].auto(g); } catch (e) { console.error(e); } }
   if (g && S.gSolo && !g.over) { try { BOT.tick(g); } catch (e) { console.error(e); } }
-  if (g && g.over && !S.done.has('ofx:' + g.id) && S.ui.gLoaded) { S.done.add('ofx:' + g.id); if (g.winner === S.me || (!g.winner && ['tele', 'cq'].includes(g.type))) setTimeout(() => { confetti(180); sfx('win'); }, 300); }
+  if (g && g.over && !S.done.has('ofx:' + g.id) && S.ui.gLoaded) { S.done.add('ofx:' + g.id); if (g.winner === S.me || (!g.winner && G[g.type].coop)) setTimeout(() => { confetti(180); sfx('win'); }, 300); }
 }
 
 /* ================= écrans ================= */
@@ -215,12 +217,12 @@ function topBar(title) {
 function statusOf(uid) { if (typing(uid)) return 'écrit…'; if (online(uid)) return 'en ligne'; const s = P(uid).seen; return s ? `vu ${ago(s)}` : 'pas encore connecté·e'; }
 function gameStatus(g) {
   const m = G[g.type]; let my = false;
-  if (m.turn && (g.type === 'ut' || g.type === 'p4')) my = m.turn(g);
+  if (m.turnBased) my = g.turn === S.me;
   const opened = +(LS.get('fuseau-open-' + g.id) || 0);
   if (g.by !== S.me && !opened) return ['coral', 'Nouveau'];
   if (my) return ['teal', 'À toi'];
   if (g.ts > opened + 1000) return ['mustard', 'Du nouveau'];
-  if (g.type === 'ut' || g.type === 'p4') return ['grey', 'Son tour'];
+  if (m.turnBased && g.turn) return ['grey', 'Son tour'];
   return ['grey', 'En cours'];
 }
 function homeView() {
@@ -242,9 +244,9 @@ function homeView() {
   else if (!live.length) h += `<div class="empty">Aucune partie en cours.<div class="actions"><button class="btn primary" data-act="tab" data-h="#/jeux">${ic('play')} Lancer un jeu</button></div></div>`;
   else h += `<div class="list">${live.slice(0, 8).map(g => { const W = WORLDS[g.type]; const [c, t] = gameStatus(g); return `<button class="item" data-act="goto" data-h="#/partie/${g.id}"><span class="thumb" style="--t:${W.tint}">${W.scene}</span><div class="grow"><b>${esc(W.name)}</b><small>${esc(G[g.type].summary ? G[g.type].summary(g) : '')} · ${ago(g.ts)}</small></div><span class="chip ${c}">${t}</span></button>`; }).join('')}</div>`;
   const sl = S.soloGames.filter(g => !g.over && G[g.type]);
-  if (sl.length) h += `<div class="sect"><h2>Contre Kobi</h2></div><div class="list">${sl.slice(0, 4).map(g => { const W = WORLDS[g.type]; const my = (g.type === 'ut' || g.type === 'p4') && g.turn === S.me; return `<button class="item" data-act="goto" data-h="#/solo/${g.id}"><span class="thumb" style="--t:${W.tint}">${W.scene}</span><div class="grow"><b>${esc(W.name)}</b><small>contre Kobi · ${ago(g.ts)}</small></div><span class="chip ${my ? 'teal' : 'grey'}">${my ? 'À toi' : 'En cours'}</span></button>`; }).join('')}</div>`;
+  if (sl.length) h += `<div class="sect"><h2>Contre Kobi</h2></div><div class="list">${sl.slice(0, 4).map(g => { const W = WORLDS[g.type]; const my = G[g.type].turnBased && g.turn === S.me; return `<button class="item" data-act="goto" data-h="#/solo/${g.id}"><span class="thumb" style="--t:${W.tint}">${W.scene}</span><div class="grow"><b>${esc(W.name)}</b><small>contre Kobi · ${ago(g.ts)}</small></div><span class="chip ${my ? 'teal' : 'grey'}">${my ? 'À toi' : 'En cours'}</span></button>`; }).join('')}</div>`;
   h += statsHTML();
-  h += `<div class="sect"><h2>Envie de jouer ?</h2><button class="link" data-act="tab" data-h="#/jeux">Tous les jeux</button></div><div class="worlds">${['cq', 'tele', 'mot', 'p4'].map(k => worldCard(k)).join('')}</div>`;
+  h += `<div class="sect"><h2>Envie de jouer ?</h2><button class="link" data-act="tab" data-h="#/jeux">Tous les jeux</button></div><div class="worlds">${(() => { const d = Math.floor(now() / 864e5); return [0, 1, 2, 3].map(i => ORDER[(d * 4 + i) % ORDER.length]); })().map(k => worldCard(k)).join('')}</div>`;
   return h;
 }
 function nextRdv() { return S.msgs.filter(m => m.t === 'rdv' && m.st === 'ok' && m.when > now() - 3600000).sort((a, b) => a.when - b.when)[0] || null; }
@@ -254,7 +256,7 @@ function statsHTML() {
   return `<div class="sect"><h2>Vos stats</h2><small class="muted" style="font-weight:800">${n} partie${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}</small></div><div class="stats"><div class="stat">${ic('trophy')}<b>${a} – ${b}</b><small>Duels gagnés</small></div><div class="stat">${ic('brain')}<b>${te}/8</b><small>Record télépathie</small></div><div class="stat">${ic('brush')}<b>${cq}</b><small>Record croquis</small></div></div>`;
 }
 function worldCard(k, wide) { const W = WORLDS[k]; return `<button class="wcard ${wide ? 'wide' : ''}" data-act="goto" data-h="#/monde/${k}"><div class="scene" style="background:${W.tint}">${W.scene}<span class="chip">${esc(W.tag)}</span></div><div class="wt"><h3>${esc(W.name)}</h3><p>${esc(W.pitch)}</p></div></button>`; }
-function gamesView() { return topBar('Les jeux') + `<p class="muted" style="font-weight:700;margin:-4px 2px 14px">7 univers à explorer à deux, ou contre Kobi le robot. Touche un monde pour y entrer.</p><div class="worlds">${ORDER.map((k, i) => worldCard(k, i === 0)).join('')}</div>`; }
+function gamesView() { return topBar('Les jeux') + `<p class="muted" style="font-weight:700;margin:-4px 2px 6px">${ORDER.length} univers à explorer à deux, ou contre Kobi le robot. Touche un monde pour y entrer.</p>${GROUPS.map(([t, L], gi) => `<div class="sect"><h2>${esc(t)}</h2></div><div class="worlds">${L.map((k, i) => worldCard(k, i === 0 && L.length % 2 === 1)).join('')}</div>`).join('')}`; }
 function worldView(k) {
   const W = WORLDS[k]; if (!W) return homeView(); const op = partner();
   const hist = S.results.filter(r => r.t === k).slice(0, 5);
@@ -390,7 +392,7 @@ function sheetHTML() {
   const s = S.ui.sheet; if (!s) return '';
   const op = partner(); let h = '';
   if (s === 'how' && S.g) { const W = WORLDS[S.g.type]; h = `<div style="border-radius:22px;overflow:hidden;height:140px;background:${W.tint}">${W.scene}</div><h2 class="mt">${esc(W.name)}</h2><div class="how" style="--w-acc:${W.accent};--w-tint:${W.tint}">${W.how.map(([i, t]) => `<div>${ic(i)}<span>${esc(t)}</span></div>`).join('')}</div><div class="actions"><button class="btn world block" data-act="closesheet">C'est parti !</button></div>`; }
-  else if (s === 'setup') { const k = S.ui.setupType; const isDev = k === 'dev'; const cats = isDev ? Object.entries(DEVCATS).map(([c, v]) => [c, v.e, v.n, v.c, v.d]) : Object.entries(DECKS).map(([c, v]) => [c, v.e, v.n, v.c, v.cards.length + ' cartes']); h = `<h2>${isDev ? 'Choisis une catégorie' : 'Choisis un paquet'}</h2><div class="catg">${cats.map(([c, e, n, col, d]) => `<button class="cat" style="--c:${col}" data-act="setupcat" data-c="${c}">${ic(e)}<b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('')}</div>`; }
+  else if (s === 'setup') { const k = S.ui.setupType; const isDev = k === 'dev'; const cats = G[k].cats ? G[k].cats() : isDev ? Object.entries(DEVCATS).map(([c, v]) => [c, v.e, v.n, v.c, v.d]) : Object.entries(DECKS).map(([c, v]) => [c, v.e, v.n, v.c, v.cards.length + ' cartes']); h = `<h2>${G[k].catTitle || (isDev ? 'Choisis une catégorie' : 'Choisis un paquet')}</h2><div class="catg">${cats.map(([c, e, n, col, d]) => `<button class="cat" style="--c:${col}" data-act="setupcat" data-c="${c}">${ic(e)}<b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('')}</div>`; }
   else if (s === 'partner' && op) h = `${profileCard(op)}<div class="actions"><button class="btn primary" data-act="tab" data-h="#/chat">${ic('chat')} Écrire</button><button class="btn ghost" data-act="wizz">${ic('vibrate')} Wizz</button></div>`;
   else if (s === 'me') h = `${profileCard(S.me)}<div class="actions"><button class="btn primary" data-act="editprof">${ic('pencil')} Modifier</button></div>`;
   else if (s === 'rdv') {
@@ -496,6 +498,18 @@ const ACT = {
   mk: d => G.mot.key(S.g, d.k),
   ut: d => G.ut.play(S.g, +d.k),
   p4: d => G.p4.play(S.g, +d.c),
+  quiza: d => G.quiz.answer(S.g, +d.i),
+  mensg: d => G.mens.guess(S.g, +d.i),
+  navshuf: () => G.nav.shuffle(),
+  navready: () => G.nav.setReady(S.g),
+  navshot: d => G.nav.shoot(S.g, +d.k),
+  tabgo: () => G.interdit.go(S.g),
+  tabok: () => G.interdit.mark(true), tabko: () => G.interdit.mark(false), tabpass: () => G.interdit.mark(false),
+  bacrej: d => G.bac.rej(d.k),
+  histjk: () => G.hist.joker(S.g),
+  histshare: async () => { const t = G.hist.text(S.g); try { if (navigator.share) { await navigator.share({ text: t }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(t); toast('Histoire copiée !'); } catch (e) { } },
+  photoalt: () => G.photo.alt(S.g),
+  photore: d => G.photo.react(S.g, d.e),
   canext: () => { H.patch({ data: { i: S.g.data.i + 1 } }); sfx('place'); },
   caprev: () => { if (S.g.data.i > 0) H.patch({ data: { i: S.g.data.i - 1 } }); sfx('back'); },
   cashuffle: () => H.patch({ data: { order: shuffle(S.g.data.order), i: 0 } }),
@@ -532,6 +546,10 @@ const ACT = {
 };
 const FORMS = {
   tele: f => { const v = f.v.value.trim(); if (v) G.tele.submit(S.g, v); },
+  mens: f => G.mens.submit(S.g, f),
+  bac: f => G.bac.submit(S.g, f),
+  hist: f => { const v = f.t.value.trim(); if (v.length < 3) return; if (G.hist.add(S.g, v)) f.t.value = ''; },
+  photo: f => { const p = S.ui.ph; if (!p || !S.g || p.id !== S.g.id) return; G.photo.post(S.g, p.d, f.c.value.trim()); },
   cq: f => { const v = f.v.value.trim(); if (!v) return; f.v.value = ''; G.cq.guess(S.g, v); },
   msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; if (S.ui.emo) { S.ui.emo = false; render(); } S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); notifyPartner(v, '#/chat', nm(S.me)); },
   rdv: f => { const when = new Date(`${f.d.value}T${f.h.value}`).getTime(); if (!when || when < now() - 60000) { toast('Choisis une date à venir'); return; } S.B.add(duoPath('msgs'), { t: 'rdv', from: S.me, when, game: f.g.value || null, note: f.n.value.trim().slice(0, 120), st: 'open', at: now() }); { const op = partner(); notifyPartner(`${nm(S.me)} te propose un rendez-vous : ${fmtWhen(when, op && P(op).tz)}`, '#/chat'); } S.ui.sheet = null; sfx('send'); toast('Proposition envoyée'); go('#/chat'); },
@@ -565,6 +583,10 @@ document.addEventListener('click', e => { const t = e.target.closest('[data-act]
 document.addEventListener('submit', e => { const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form] && FORMS[f.dataset.form](f); });
 document.addEventListener('input', e => { const rk = e.target.dataset && e.target.dataset.set; if (rk) { S.set[rk] = +e.target.value; saveSet(); applyVolumes(); const b = e.target.parentElement.querySelector('b'); if (b) b.textContent = Math.round(S.set[rk] * 100) + ' %'; if (rk === 'vol') sfx('tap'); return; } if (e.target.closest('form[data-form="rdv"]')) rdvPreview(); if (e.target.id === 'msgIn' && S.code && now() - (S.lastTyping || 0) > 3000) { S.lastTyping = now(); S.B.merge(`users/${S.me}`, { typing: now() }); } });
 document.addEventListener('change', e => {
+  if (e.target.id === 'photoGame' && e.target.files[0] && S.g) {
+    const gid = S.g.id; const img = new Image(); img.onload = () => { const M = 1000, r = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); let q = .8, d = c.toDataURL('image/jpeg', q); while (d.length > 600000 && q > .4) { q -= .1; d = c.toDataURL('image/jpeg', q); } S.ui.ph = { id: gid, d }; URL.revokeObjectURL(img.src); sfx('coin'); render(); };
+    img.onerror = () => toast('Image illisible'); img.src = URL.createObjectURL(e.target.files[0]); return;
+  }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;
   const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); const sz = 320; c.width = c.height = sz; const s = Math.min(img.width, img.height); c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, sz, sz); S.ui.pf.avatar = { t: 'photo', d: c.toDataURL('image/jpeg', .82) }; URL.revokeObjectURL(img.src); sfx('coin'); render(); };
   img.onerror = () => toast('Image illisible'); img.src = URL.createObjectURL(e.target.files[0]);
@@ -610,5 +632,5 @@ async function boot() {
   if (S.B.mode === 'demo') await seedDemo(S.B);
   S.B.onUser(u => { S.done = new Set(); handleUser(u); if (routeName() === 'partie' || routeName() === 'solo') openGame(routeArg()); });
 }
-if (location.search.includes("debug")) window.S = S;
+if (location.search.includes("debug")) { window.S = S; window.G = G; }
 boot();

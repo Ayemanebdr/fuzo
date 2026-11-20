@@ -89,8 +89,101 @@ export const WORLDS = {
       <g transform="translate(176 150) rotate(-8)"><rect width="46" height="62" rx="7" fill="#fff" ${st}/><path d="M10 18h26M10 28h18" ${st}/></g>
       <g transform="translate(298 64)"><animateTransform attributeName="transform" type="translate" values="298 64;298 58;298 64" dur="3s" repeatCount="indefinite"/><path d="M0 0h70a10 10 0 0110 10v24a10 10 0 01-10 10H26l-12 10v-10H10A10 10 0 010 34V10A10 10 0 0110 0z" fill="#fff" ${st}/><circle cx="26" cy="22" r="4" fill="${K}"/><circle cx="40" cy="22" r="4" fill="${K}"/><circle cx="54" cy="22" r="4" fill="${K}"/></g></svg>`,
   },
+  quiz: {
+    name: 'Quiz Afrique & Canada', place: 'Le Grand Plateau', icon: 'globe2', tint: '#e5edfb', accent: '#3d6fc4', dark: '#26498a', tag: 'Quiz',
+    pitch: "Capitales, musique, sport, expressions québécoises : qui en sait le plus ?",
+    how: [['globe2', 'Choisis un thème : Afrique, Canada, Monde ou mélange.'], ['timer', '10 questions, 20 secondes chacune. Répondez chacun de votre côté.'], ['trophy', '10 pts par bonne réponse, plus un bonus de rapidité.']],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#2f4f8f"/>
+      ${[0, 1, 2, 3, 4, 5, 6].map(i => `<path d="M200 230L${-40 + i * 80} -10" stroke="#3d62a8" stroke-width="26" opacity=".55"/>`).join('')}
+      <g fill="#f3b94d">${[30, 70, 110, 150, 250, 290, 330, 370].map((x, i) => `<circle cx="${x}" cy="16" r="5"><animate attributeName="opacity" values="1;.3;1" dur="1.2s" begin="${i * .15}s" repeatCount="indefinite"/></circle>`).join('')}</g>
+      <path d="M0 220V172H400V220Z" fill="#1f3766"/><path d="M0 172h400" ${st}/>
+      <g transform="translate(150 70)"><rect x="-6" y="70" width="112" height="40" rx="8" fill="#f0745f" ${st}/><rect x="10" y="62" width="80" height="14" rx="5" fill="#f3b94d" ${st}/>
+      <g><animateTransform attributeName="transform" type="rotate" values="0 50 30;360 50 30" dur="14s" repeatCount="indefinite"/><circle cx="50" cy="30" r="34" fill="#62a8e5" ${st}/>
+      <path d="M30 10q8 4 6 12t8 12-2 14M58 2q-6 10 4 16t14 6M68 42q-8 6-4 14" fill="none" stroke="#3bb5a0" stroke-width="7" stroke-linecap="round"/></g></g>
+      <g transform="translate(40 96)"><rect width="70" height="44" rx="10" fill="#fff" ${st}/><text x="35" y="31" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="24" fill="#3d6fc4">A ?</text></g>
+      <g transform="translate(292 96)"><rect width="70" height="44" rx="10" fill="#fff" ${st}/><text x="35" y="31" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="24" fill="#d65a5a">B ?</text></g>
+      ${spark(120, 50, 8, '#f3b94d', 1.8)}${spark(285, 56, 7, '#fff', 2.3)}</svg>`,
+  },
+  mens: {
+    name: 'Le Mensonge', place: 'Le Cabaret des menteurs', icon: 'mask', tint: '#f6e9f3', accent: '#a0548f', dark: '#6e3462', tag: 'Bluff',
+    pitch: '2 vérités, 1 mensonge. Saura-t-il/elle te démasquer ?',
+    how: [['pencil', 'Un thème apparaît : écris 2 vérités et 1 mensonge sur toi.'], ['mask', 'Ton duo cherche le mensonge parmi tes 3 phrases, et toi parmi les siennes.'], ['trophy', "Démasquer = 1 point. Tromper l'autre = 1 point."]],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#4a2343"/>
+      <path d="M0 0H140Q120 100 135 220H0Z" fill="#a0548f" ${st}/><path d="M400 0H260Q280 100 265 220H400Z" fill="#a0548f" ${st}/>
+      <path d="M40 0q8 110-6 220M90 0q14 110 4 220M310 0q-14 110-4 220M360 0q-8 110 6 220" stroke="#7d3f70" stroke-width="3" fill="none"/>
+      <ellipse cx="200" cy="40" rx="70" ry="120" fill="#f3b94d" opacity=".14"><animate attributeName="opacity" values=".1;.22;.1" dur="3s" repeatCount="indefinite"/></ellipse>
+      <rect y="176" width="400" height="44" fill="#2e1529"/><path d="M0 176h400" ${st}/>
+      <g transform="translate(200 112)"><g><animateTransform attributeName="transform" type="rotate" values="-6;6;-6" dur="3s" repeatCount="indefinite"/>
+      <path d="M-74 -26q36-22 72-4v34q-4 34-36 34t-36-34z" fill="#fff" ${st}/><path d="M-60 -6q8-6 16 0M-30 -6q8-6 16 0" ${st} fill="none"/><path d="M-56 18q18 16 36 0" ${st} fill="#f0745f"/>
+      <path d="M2 -22q36-18 72 4v34q0 34-36 34t-36-34z" fill="#3a2a4f" ${st}/><path d="M16 -2q8 6 16 0M46 -2q8 6 16 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M20 32q18-14 36 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+      <path d="M-2 0v70" ${st}/></g>
+      ${spark(100, 60, 8, '#f3b94d', 1.7)}${spark(305, 70, 9, '#fff', 2.1)}${spark(285, 150, 5, '#f3b94d', 1.5)}</svg>`,
+  },
+  nav: {
+    name: 'Bataille navale', place: 'La Baie des corsaires', icon: 'boat', tint: '#e2f3f6', accent: '#2e8fa3', dark: '#1d6676', tag: 'Stratégie',
+    pitch: 'Cache ta flotte, traque la sienne. Touché… coulé !',
+    how: [['shuffle', 'Place ta flotte au hasard (5 bateaux), mélange autant que tu veux.'], ['crosshair', "Chacun son tour, vise une case de sa mer. Touché = tu rejoues."], ['anchor', 'Le premier qui coule toute la flotte adverse gagne.']],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#bfe6ee"/>
+      <circle cx="330" cy="46" r="22" fill="#f3b94d" ${st}/>
+      <path d="M0 110Q50 100 100 110T200 110T300 110T400 110V220H0Z" fill="#62a8e5" ${st}><animate attributeName="d" values="M0 110Q50 100 100 110T200 110T300 110T400 110V220H0Z;M0 110Q50 120 100 110T200 110T300 110T400 110V220H0Z;M0 110Q50 100 100 110T200 110T300 110T400 110V220H0Z" dur="4s" repeatCount="indefinite"/></path>
+      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 5;0 0" dur="3s" repeatCount="indefinite"/><g transform="translate(70 70)"><path d="M0 40h120l-16 26H16z" fill="#9a6b4b" ${st}/><path d="M58 40V-24" ${st}/><path d="M60 -20q40 20 0 56z" fill="#fff" ${st}/><path d="M56 -16q-36 22 0 52z" fill="#fdf0d3" ${st}/><path d="M58 -24l18-6-2 10z" fill="#d65a5a" ${st}/></g></g>
+      <g transform="translate(270 120)"><path d="M0 8q30-14 60 0l-6 14H6z" fill="#3a3550" ${st}/><rect x="22" y="-6" width="16" height="14" rx="3" fill="#3a3550" ${st}/></g>
+      <path d="M0 160Q50 150 100 160T200 160T300 160T400 160V220H0Z" fill="#2e8fa3" ${st}/>
+      <g transform="translate(250 112)"><circle r="16" fill="none" stroke="#d65a5a" stroke-width="4"><animate attributeName="r" values="10;20;10" dur="1.6s" repeatCount="indefinite"/></circle><path d="M-26 0h52M0 -26v52" stroke="#d65a5a" stroke-width="3"/></g>
+      <g fill="#fff">${[[40, 182], [180, 196], [330, 186]].map(([x, y], i) => `<path d="M${x} ${y}q8-8 16 0q8-8 16 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"><animate attributeName="opacity" values="1;.3;1" dur="2s" begin="${i * .5}s" repeatCount="indefinite"/></path>`).join('')}</g></svg>`,
+  },
+  interdit: {
+    name: 'Le Mot Interdit', place: 'Le Studio radio', icon: 'prohibit', tint: '#fde9e6', accent: '#d65a5a', dark: '#9c3434', tag: 'En appel',
+    pitch: "Fais deviner un max de mots en 60 s… sans dire les mots interdits !",
+    how: [['chat', 'Lancez un appel : ce jeu se joue à voix haute.'], ['prohibit', "L'un fait deviner le mot affiché sans dire les 4 mots interdits."], ['timer', "60 secondes par manche, les rôles alternent. Battez votre record !"]],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#f7cfc7"/>
+      ${[0, 1, 2, 3, 4, 5, 6, 7].map(i => `<rect x="${i * 52}" y="0" width="44" height="44" rx="6" fill="#efb8ad"/>`).join('')}
+      <rect x="250" y="40" width="120" height="44" rx="10" fill="#3a3550" ${st}/><circle cx="270" cy="62" r="7" fill="#d65a5a"><animate attributeName="opacity" values="1;.2;1" dur="1s" repeatCount="indefinite"/></circle><text x="320" y="70" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="#fff">ON AIR</text>
+      <rect y="170" width="400" height="50" fill="#9c3434"/><path d="M0 170h400" ${st}/>
+      <g transform="translate(120 60)"><rect x="-26" y="0" width="52" height="80" rx="26" fill="#3a3550" ${st}/>${[16, 28, 40, 52].map(y => `<path d="M-16 ${y}h32" stroke="#6b6585" stroke-width="3"/>`).join('')}<path d="M-38 44q0 40 38 40t38-40" fill="none" ${st}/><path d="M0 84v26M-24 110h48" ${st}/></g>
+      <g transform="translate(250 130)"><circle r="30" fill="#fff" ${st}/><circle r="22" fill="none" stroke="#d65a5a" stroke-width="7"/><path d="M-15 15L15 -15" stroke="#d65a5a" stroke-width="7" stroke-linecap="round"/></g>
+      <g fill="none" stroke="#2a2440" stroke-width="4" stroke-linecap="round">${[0, 1, 2].map(i => `<path d="M${170 + i * 14} ${80 - i * 4}q10 20 0 40"><animate attributeName="opacity" values="1;.15;1" dur="1.2s" begin="${i * .2}s" repeatCount="indefinite"/></path>`).join('')}</g></svg>`,
+  },
+  bac: {
+    name: 'Petit Bac express', place: 'La Salle de classe', icon: 'listcheck', tint: '#fdf0e1', accent: '#d98c3a', dark: '#9a5c1c', tag: 'Rapidité',
+    pitch: 'Une lettre, 6 catégories, 90 secondes. Plume en main !',
+    how: [['listcheck', 'Une lettre est tirée : trouve un mot par catégorie.'], ['timer', '90 secondes par lettre, 3 lettres par partie.'], ['check', 'Mot unique = 2 pts, même mot = 1 pt. Touche un mot douteux pour le refuser.']],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#f6dcb7"/>
+      <rect x="60" y="22" width="280" height="120" rx="10" fill="#3f6b4f" ${st}/><rect x="60" y="22" width="280" height="120" rx="10" fill="none" stroke="#9a6b4b" stroke-width="8"/>
+      <text x="200" y="104" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="76" fill="#fff" opacity=".92">M<animate attributeName="opacity" values=".92;.5;.92" dur="2.5s" repeatCount="indefinite"/></text>
+      <path d="M86 48h60M86 60h40M260 50h50M270 62h34" stroke="#e8f1ea" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+      <rect y="166" width="400" height="54" fill="#c98f52"/><path d="M0 166h400" ${st}/>
+      <g transform="translate(70 150) rotate(-6)"><rect width="110" height="56" rx="4" fill="#fff" ${st}/><path d="M10 14h60M10 26h80M10 38h50" stroke="#62a8e5" stroke-width="3"/><path d="M76 34l8 8 14-18" stroke="#3bb5a0" stroke-width="4" fill="none" stroke-linecap="round"/></g>
+      <g transform="translate(250 136) rotate(30)"><rect width="14" height="80" rx="3" fill="#f3b94d" ${st}/><path d="M0 80l7 16 7-16" fill="#f6dcb9" ${st}/><animateTransform attributeName="transform" type="rotate" values="30;22;30" dur="1s" additive="sum" repeatCount="indefinite"/></g>
+      <g transform="translate(320 150)"><circle r="22" fill="#fff" ${st}/><path d="M0 0v-14M0 0l10 6" ${st}><animateTransform attributeName="transform" type="rotate" values="0;360" dur="6s" repeatCount="indefinite"/></path></g></svg>`,
+  },
+  hist: {
+    name: 'Histoire à deux', place: 'La Forêt des contes', icon: 'feather', tint: '#eef6e3', accent: '#6a9f3f', dark: '#4a7a24', tag: 'Créatif',
+    pitch: 'Écrivez une histoire, une phrase chacun, avec des mots imposés.',
+    how: [['book', "Un début d'histoire est tiré au sort."], ['feather', 'Chacun son tour, ajoute une phrase avec le mot imposé (2 jokers pour en changer).'], ['sparkle', 'Après 10 phrases, relisez votre conte et partagez-le !']],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#d6ecc2"/>
+      ${[[30, 120, 46], [92, 104, 56], [320, 112, 52], [372, 126, 40]].map(([x, y, r]) => `<path d="M${x} 220V${y + 20}" stroke="#7a5236" stroke-width="12"/><circle cx="${x}" cy="${y}" r="${r}" fill="#7cae4f" ${st}/>`).join('')}
+      <path d="M0 220V180Q200 160 400 180V220Z" fill="#9cc48a" ${st}/>
+      <g transform="translate(200 132)"><path d="M-90 -6q45-18 90 0v58q-45-18-90 0z" fill="#fff" ${st}/><path d="M90 -6q-45-18-90 0v58q45-18 90 0z" fill="#fff8ec" ${st}/>
+      <path d="M-74 8q30-8 60 0M-74 20q30-8 60 0M-74 32q24-6 48 0M14 8q30-8 60 0M14 20q30-8 60 0" stroke="#c9b9a0" stroke-width="3" fill="none"/></g>
+      <g><animateTransform attributeName="transform" type="translate" values="0 0;8 -10;0 0" dur="3.4s" repeatCount="indefinite"/><g transform="translate(250 50) rotate(30)"><path d="M0 0q30 20 10 80q-30-30-10-80z" fill="#fff" ${st}/><path d="M6 10q6 30 4 66" ${st} fill="none"/></g></g>
+      ${spark(160, 70, 8, '#f3b94d', 1.8)}${spark(120, 40, 6, '#fff', 2.2)}${spark(300, 160, 6, '#f3b94d', 1.6)}
+      <g transform="translate(60 168)"><circle r="6" fill="#ef8fb3"/><circle cx="16" cy="6" r="5" fill="#f3b94d"/><circle cx="300" cy="-4" r="6" fill="#8d7bea"/></g></svg>`,
+  },
+  photo: {
+    name: 'Défi photo', place: 'Le Studio photo', icon: 'camera', tint: '#fde8ee', accent: '#e2557a', dark: '#a63355', tag: 'Défi',
+    pitch: "Un thème, une photo chacun, révélées en même temps.",
+    how: [['camera', 'Un thème est tiré : « quelque chose de bleu », « ton petit-déj »…'], ['eye', "Ta photo reste cachée jusqu'à ce que ton duo poste la sienne."], ['heart', 'Découvrez-les ensemble et réagissez à celle de l\'autre.']],
+    scene: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice"><rect width="400" height="220" fill="#f9d3dd"/>
+      <path d="M0 40h400" stroke="#2a2440" stroke-width="2"/>${[[50, -6], [130, 5], [270, -4], [350, 6]].map(([x, r], i) => `<g transform="translate(${x} 36) rotate(${r})"><rect x="-6" y="-4" width="12" height="12" fill="#f3b94d" ${st}/><rect x="-28" y="6" width="56" height="62" rx="3" fill="#fff" ${st}/><rect x="-22" y="12" width="44" height="40" fill="${['#62a8e5', '#f3b94d', '#3bb5a0', '#8d7bea'][i]}"/></g>`).join('')}
+      <rect y="176" width="400" height="44" fill="#e2a0b2"/><path d="M0 176h400" ${st}/>
+      <g transform="translate(200 132)"><rect x="-62" y="-36" width="124" height="80" rx="16" fill="#3a3550" ${st}/><rect x="-30" y="-48" width="40" height="16" rx="5" fill="#3a3550" ${st}/><circle r="28" fill="#62a8e5" ${st}/><circle r="16" fill="#2a2440"/><circle cx="-6" cy="-6" r="5" fill="#fff"/><circle cx="44" cy="-22" r="6" fill="#f3b94d" ${st}/></g>
+      <circle cx="200" cy="132" r="80" fill="#fff" opacity="0"><animate attributeName="opacity" values="0;0;.8;0" keyTimes="0;.85;.9;1" dur="3s" repeatCount="indefinite"/></circle>
+      ${spark(100, 120, 8, '#fff', 1.8)}${spark(310, 120, 9, '#f3b94d', 2.2)}</svg>`,
+  },
 };
-export const ORDER = ['tele', 'dev', 'cq', 'mot', 'ut', 'p4', 'cartes'];
+export const ORDER = ['tele', 'dev', 'cq', 'mot', 'ut', 'p4', 'cartes', 'quiz', 'mens', 'nav', 'interdit', 'bac', 'hist', 'photo'];
+export const GROUPS = [['Se défier', ['quiz', 'dev', 'mot', 'bac', 'mens']], ['Faire équipe', ['tele', 'cq', 'interdit', 'hist', 'photo']], ['Stratégie', ['nav', 'ut', 'p4']], ['Pour parler', ['cartes']]];
 
 export const LOGO = `<svg viewBox="0 0 120 120"><rect width="120" height="120" rx="30" fill="#8d7bea"/><circle cx="60" cy="60" r="38" fill="#fbf7f0" stroke="${K}" stroke-width="5"/><path d="M60 22a38 38 0 010 76z" fill="#f0745f" stroke="${K}" stroke-width="5"/><circle cx="44" cy="56" r="5" fill="${K}"/><circle cx="76" cy="56" r="5" fill="#fff"/><path d="M46 72q14 12 28 0" fill="none" stroke="${K}" stroke-width="5" stroke-linecap="round"/></svg>`;
 
