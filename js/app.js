@@ -4,6 +4,7 @@ import { makeBot, BOT_ID, BOT_GAMES, BOT_PROFILE } from './bot.js';
 import { makeGames, esc, shuffle } from './games.js';
 import { WORLDS, ORDER, GROUPS, LOGO, HERO } from './worlds.js';
 import { addGames } from './games2.js';
+import { GIPHY_KEY } from './giphy-config.js';
 import { AVATARS, avUrl } from './avatars.js';
 import { SPRITE } from './sprite.js';
 import { makeMusic } from './music.js';
@@ -63,7 +64,7 @@ for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEv
 function play(k, vol = .7, rate = 1) { const c = SND.ctx, b = SND.buf[k]; if (!c || !b) return; const s = c.createBufferSource(), g = c.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(SND.fx); s.start(); }
 function synth(seq, type = 'triangle', vol = .16) { const c = SND.ctx; if (!c) return; const t = c.currentTime; let o = 0; for (const [f, d] of seq) { const os = c.createOscillator(), g = c.createGain(); os.type = type; os.frequency.value = f; g.gain.setValueAtTime(.0001, t + o); g.gain.exponentialRampToValueAtTime(vol, t + o + .015); g.gain.exponentialRampToValueAtTime(.0001, t + o + d); os.connect(g); g.connect(SND.fx); os.start(t + o); os.stop(t + o + d + .03); o += d * .85; } }
 const MUSIC = makeMusic(() => SND.ctx, () => SND.mus);
-function updateMusic(world) { if (!SND.ctx || SND.ctx.state !== 'running') return; const r = routeName(); const m = !S.set.music || document.hidden || !S.prof ? null : world || (['home', 'jeux', 'chat', 'profil'].includes(r) ? 'home' : null); MUSIC.set(m); }
+function updateMusic(world) { if (!SND.ctx || SND.ctx.state !== 'running') return; const r = routeName(); const m = !S.set.music || document.hidden || !S.prof || S.ui.rec || S.ui.playing ? null : world || (['home', 'jeux', 'chat', 'profil'].includes(r) ? 'home' : null); MUSIC.set(m); }
 function sfx(k) {
   if (!S.set.sound) return;
   try {
@@ -178,9 +179,9 @@ function onMsgs(L) {
   S.msgs = L;
   for (const m of fresh) {
     if (m.from === S.me) continue;
-    if (m.t === 'text' || m.t === 'rdv' || m.t === 'invite') {
+    if (['text', 'rdv', 'invite', 'img', 'gif', 'voice'].includes(m.t)) {
       sfx('msg');
-      const label = m.t === 'invite' ? `t'invite à jouer à ${WORLDS[m.game] ? WORLDS[m.game].name : 'un jeu'}` : m.t === 'rdv' ? 'te propose un rendez-vous' : m.text;
+      const label = m.t === 'invite' ? `t'invite à jouer à ${WORLDS[m.game] ? WORLDS[m.game].name : 'un jeu'}` : m.t === 'rdv' ? 'te propose un rendez-vous' : m.t === 'text' ? m.text : snip(m);
       if (routeName() !== 'chat') toast(`${av(m.from, 'xs')}<span><b>${esc(nm(m.from))}</b> ${esc(String(label).slice(0, 80))}</span>`, m.t === 'invite' ? 'goto' : 'goto', { h: m.t === 'invite' ? `#/partie/${m.gid}` : '#/chat' });
       notify(nm(m.from), m.t === 'text' ? m.text : label);
     }
@@ -191,7 +192,7 @@ async function notify(title, body) {
   if (!S.set.notif || !document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
   try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) reg.showNotification(title, { body: String(body).slice(0, 120), icon: 'assets/icons/icon-192.png', badge: 'assets/icons/icon-192.png', tag: 'fuseau' }); } catch (e) { }
 }
-function unread() { const r = (S.prof && S.prof.readAt && S.prof.readAt[S.code]) || 0; return S.msgs.filter(m => m.from !== S.me && m.at > r && m.t !== 'sys').length; }
+function unread() { const r = (S.prof && S.prof.readAt && S.prof.readAt[S.code]) || 0; return S.msgs.filter(m => m.from !== S.me && m.at > r && !['sys', 'del'].includes(m.t)).length; }
 let readT = 0;
 function markRead() { if (routeName() !== 'chat' || document.hidden || !S.msgs.length || !S.code) return; const last = S.msgs[S.msgs.length - 1].at; const r = (S.prof && S.prof.readAt && S.prof.readAt[S.code]) || 0; if (last > r && now() - readT > 1500) { readT = now(); S.B.merge(`users/${S.me}`, { readAt: { [S.code]: last } }); } }
 
@@ -287,6 +288,54 @@ function partieView(id) {
   const key = g.over ? `over-${g.id}` : `g-${g.id}-${m.key ? m.key(g) : ''}`;
   return { html, key, after: () => m.after && !g.over && m.after(g), update: () => m.update && !g.over && m.update(g) };
 }
+const snip = m => !m ? '' : m.t === 'text' ? m.text : m.t === 'img' ? '📷 Photo' : m.t === 'voice' ? '🎤 Note vocale' : m.t === 'gif' ? 'GIF' : m.t === 'del' ? 'Message supprimé' : '';
+const fmtDur = x => `${Math.floor(x / 60)}:${String(Math.floor(x) % 60).padStart(2, '0')}`;
+function bubble(m, side, t) {
+  if (m.t === 'del') return `<div class="msg ${side} del" data-k="m-${m.id}-del"><span class="mtx">${ic('prohibit')} Message supprimé</span></div>`;
+  const q = m.re ? `<div class="quote" data-act="jump" data-id="${esc(m.re.id)}"><b>${m.re.from === S.me ? 'Toi' : esc(nm(m.re.from))}</b><span>${esc(m.re.x)}</span></div>` : '';
+  let body = '';
+  if (m.t === 'text') body = `<span class="mtx">${esc(m.text)}</span>`;
+  else if (m.t === 'img' || m.t === 'gif') body = `<img class="mimg" src="${esc(m.t === 'gif' ? m.u : m.d)}" data-act="viewimg" data-id="${m.id}" style="aspect-ratio:${+m.w || 4}/${+m.h || 3}" alt="">`;
+  else if (m.t === 'voice') body = `<div class="vn"><button class="vplay" data-act="vplay" data-id="${m.id}">${ic(S.ui.playing === m.id ? 'pause' : 'play')}</button><div class="vbar"><i id="vb-${m.id}"></i></div><span class="vdur">${fmtDur(m.dur || 0)}</span></div>`;
+  const rx = Object.values(m.rx || {}).filter(Boolean);
+  return `<div class="msg ${side}${m.t === 'img' || m.t === 'gif' ? ' media' : ''}${m.t === 'voice' ? ' voice' : ''}" data-k="m-${m.id}-${m.t}" data-mid="${m.id}">${q}${body}<time>${m.ed ? 'modifié · ' : ''}${t}</time>${rx.length ? `<span class="mrx">${rx.map(esc).join('')}</span>` : ''}</div>`;
+}
+function sendMsg(o, label) {
+  const r = S.ui.reply; const rec = Object.assign({ from: S.me, at: now() }, r ? { re: r } : {}, o);
+  S.ui.reply = null; S.B.add(duoPath('msgs'), rec); sfx('send'); notifyPartner(label, '#/chat', nm(S.me)); render();
+}
+function startReply(id) { const m = S.msgs.find(x => x.id === id); if (!m) return; S.ui.reply = { id, from: m.from, x: snip(m).slice(0, 90) }; S.ui.edit = null; S.ui.sheet = null; render(); setTimeout(() => { const i = $('#msgIn'); i && i.focus(); }, 60); }
+function blobToData(b) { return new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(b); }); }
+let VA = null;
+const REC = {};
+async function recStart() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toast("Les notes vocales ne sont pas disponibles sur ce navigateur"); return; }
+  if (VA) { VA.pause(); VA = null; S.ui.playing = null; }
+  let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { toast('Autorise le micro pour envoyer une note vocale'); return; }
+  const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(x => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(x)) || '';
+  let mr; try { mr = new MediaRecorder(st, Object.assign({ audioBitsPerSecond: 32000 }, mime ? { mimeType: mime } : {})); } catch (e) { mr = new MediaRecorder(st); }
+  Object.assign(REC, { ch: [], size: 0, mr, st, t0: Date.now(), send: false });
+  mr.ondataavailable = e => { if (e.data && e.data.size) { REC.ch.push(e.data); REC.size += e.data.size; if (REC.size > 640000) recStop(true); } };
+  mr.onstop = async () => {
+    st.getTracks().forEach(x => x.stop()); clearInterval(REC.iv); const dur = (Date.now() - REC.t0) / 1000; S.ui.rec = false; render();
+    if (!REC.send) return; if (dur < 0.8) { toast('Note trop courte'); return; }
+    const blob = new Blob(REC.ch, { type: mr.mimeType || mime || 'audio/webm' }); if (blob.size > 720000) { toast('Note trop longue'); return; }
+    sendMsg({ t: 'voice', d: await blobToData(blob), dur: Math.round(dur * 10) / 10 }, '🎤 Note vocale');
+  };
+  mr.start(250); S.ui.rec = true; S.ui.emo = false; if (S.set.vib && navigator.vibrate) navigator.vibrate(20); render();
+  REC.iv = setInterval(() => { const x = (Date.now() - REC.t0) / 1000; const el = $('#recT'); if (el) el.textContent = fmtDur(x); if (x >= 90) recStop(true); }, 200);
+}
+function recStop(send) { if (!REC.mr || REC.mr.state === 'inactive') return; REC.send = send; try { REC.mr.requestData(); } catch (e) { } REC.mr.stop(); }
+async function gifLoad(q) {
+  if (!GIPHY_KEY) { S.ui.gif = { q, err: 'La recherche GIPHY arrive bientôt. En attendant, envoie un GIF depuis ton téléphone.' }; render(); return; }
+  S.ui.gif = { q, loading: true }; render();
+  try {
+    const u = q ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=30&rating=pg-13&lang=fr` : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=30&rating=pg-13`;
+    const j = await (await fetch(u)).json();
+    const res = (j.data || []).map(g => { const a = g.images.fixed_width || {}, b = g.images.fixed_width_small || a; return { p: b.webp || b.url, u: a.webp || a.url, w: +a.width || 200, h: +a.height || 200 }; }).filter(x => x.u);
+    if (S.ui.gif && S.ui.gif.q === q) { S.ui.gif = { q, res }; render(); }
+  } catch (e) { S.ui.gif = { q, err: 'Impossible de charger les GIF. Vérifie ta connexion.' }; render(); }
+}
 function chatView() {
   const op = partner(); const me = S.me; const p = S.prof;
   let h = `<div class="chat-h"><button class="ib" data-act="tab" data-h="#/" aria-label="Retour">${ic('back')}</button>${op ? av(op, 'md', true) : ''}<div class="grow"><b>${op ? esc(nm(op)) : 'Messages'}</b><small class="${online(op) ? 'on' : ''}">${op ? (typing(op) ? 'écrit…' : statusOf(op) + (P(op).tz ? ` · ${timeIn(P(op).tz)} là-bas` : '')) : 'Invite ton duo pour discuter'}</small></div><button class="ib" data-act="sheet" data-s="rdv" aria-label="Rendez-vous">${ic('calplus')}</button></div><div class="msgs" id="msgs">`;
@@ -296,7 +345,7 @@ function chatView() {
     const day = new Date(m.at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     if (day !== lastDay) { h += `<div class="day">${esc(day)}</div>`; lastDay = day; }
     const mine = m.from === me, side = mine ? 'me' : 'them', t = fmtHour(m.at);
-    if (m.t === 'text') h += `<div class="msg ${side}" data-k="m-${m.id}">${esc(m.text)}<time>${t}</time></div>`;
+    if (['text', 'img', 'gif', 'voice', 'del'].includes(m.t)) h += bubble(m, side, t);
     else if (m.t === 'invite') { const W = WORLDS[m.game]; if (!W) continue; const g = S.games.find(x => x.id === m.gid); const done = g && g.over; h += `<div class="mcard ${side}" data-k="m-${m.id}"><div class="sc" style="background:${W.tint}">${W.scene}</div><div class="mc"><small>${mine ? 'Tu as lancé une partie' : `${esc(nm(m.from))} t'invite à jouer`} · ${t}</small><b>${esc(W.name)}</b><div class="actions"><button class="btn ${done ? 'ghost' : 'primary'} sm" data-act="goto" data-h="#/partie/${m.gid}">${done ? 'Voir le résultat' : mine ? 'Ouvrir' : ic('play') + ' Jouer'}</button></div></div></div>`; }
     else if (m.t === 'rdv') {
       const W = WORLDS[m.game]; const optz = op && P(op).tz;
@@ -312,7 +361,9 @@ function chatView() {
   }
   h += `</div>`;
   const EMO = ['😂','🥰','😍','😘','😎','🤣','😅','😭','🥺','😤','🙄','😴','🤔','😏','🔥','❤️','💜','👏','🙏','💪','🎉','✨','👀','💯'];
-  const dock = `<div class="composer-bar"><div class="emobar ${S.ui.emo ? 'on' : ''}">${S.ui.emo ? EMO.map(e => `<button type="button" data-act="emoins" data-e="${e}">${e}</button>`).join('') : ''}</div><form class="composer" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><div class="inwrap grow"><input class="field" name="t" id="msgIn" maxlength="500" autocomplete="off" enterkeyhint="send" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Écris un message…'}"><button type="button" class="emobtn" data-act="emotog" aria-label="Emojis">${ic('smile')}</button></div><button class="btn primary sq" aria-label="Envoyer">${ic('send')}</button></form></div>`;
+  const ed = S.ui.edit && S.msgs.find(x => x.id === S.ui.edit), rp = S.ui.reply; const typed = !!(($('#msgIn') || {}).value || '').trim();
+  const cb = ed ? `${ic('pencil')}<div class="grow"><b>Modifier le message</b><span>${esc(snip(ed))}</span></div>` : rp ? `${ic('reply')}<div class="grow"><b>Réponse à ${rp.from === S.me ? 'toi-même' : esc(nm(rp.from))}</b><span>${esc(rp.x)}</span></div>` : '';
+  const dock = `<div class="composer-bar ${S.ui.rec ? 'rec' : ''}"><div class="emobar ${S.ui.emo ? 'on' : ''}">${S.ui.emo ? EMO.map(e => `<button type="button" data-act="emoins" data-e="${e}">${e}</button>`).join('') : ''}</div><div class="cbar ${cb ? 'on' : ''}">${cb ? cb + `<button type="button" class="ib" data-act="cbarx" aria-label="Annuler">${ic('x')}</button>` : ''}</div><div class="recbar">${S.ui.rec ? `<button type="button" class="ib" data-act="reccancel" aria-label="Annuler">${ic('trash')}</button><div class="recd grow"><i></i><b id="recT">0:00</b><small>Enregistrement…</small></div><button type="button" class="btn primary sq" data-act="recsend" aria-label="Envoyer">${ic('send')}</button>` : ''}</div><form class="composer ${typed || ed ? 'typed' : ''}" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><div class="inwrap grow"><input class="field" name="t" id="msgIn" maxlength="1000" autocomplete="off" enterkeyhint="send" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Écris un message…'}"><button type="button" class="emobtn" data-act="emotog" aria-label="Emojis">${ic('smile')}</button></div><button type="button" class="btn primary sq micb" data-act="recstart" aria-label="Note vocale">${ic('mic')}</button><button class="btn primary sq sendb" aria-label="Envoyer">${ic('send')}</button></form></div>`;
   return { html: h, dock, after: () => scrollChat(true), update: () => scrollChat(false) };
 }
 let lastMsgCount = 0;
@@ -399,7 +450,11 @@ function sheetHTML() {
     const t0 = new Date(); const pad = n => String(n).padStart(2, '0'); const loc = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; const d = new Date(t0); if (t0.getHours() >= 18) d.setDate(d.getDate() + 1); d.setHours(20, 0, 0, 0); const ds = loc(t0), dd = loc(d), hh = `${pad(d.getHours())}:00`;
     h = `<h2>${ic('calplus')} Proposer un rendez-vous</h2><p class="muted mt" style="font-weight:600">Choisis l'heure chez toi, ${esc(op ? nm(op) : 'ton duo')} la verra à son heure.</p><form data-form="rdv"><div class="rdvgrid"><div><label class="lbl">Jour</label><input class="field" type="date" name="d" value="${dd}" min="${ds}" required></div><div><label class="lbl">Heure (chez toi)</label><input class="field" type="time" name="h" value="${hh}" required></div></div><p class="muted small mt" id="rdvPrev" style="font-weight:700"></p><label class="lbl">Pour jouer à…</label><select class="field" name="g"><option value="">On verra sur le moment</option>${ORDER.map(k => `<option value="${k}">${esc(WORLDS[k].name)}</option>`).join('')}</select><label class="lbl">Un petit mot <span class="muted">(facultatif)</span></label><input class="field" name="n" maxlength="120" placeholder="Prépare-toi à perdre…"><button class="btn primary block big mt2" ${op ? '' : 'disabled'}>${ic('send')} Envoyer la proposition</button></form>`;
   }
-  else if (s === 'plus') h = `<h2>Envoyer…</h2><div class="col mt"><button class="btn block" data-act="sheet" data-s="rdv">${ic('calplus')} Une proposition de rendez-vous</button><button class="btn block" data-act="sheet" data-s="invite">${ic('games')} Une invitation à jouer</button><button class="btn block" data-act="wizz">${ic('vibrate')} Un Wizz</button></div><div class="reacts">${H.reactBar()}</div>`;
+  else if (s === 'msgmenu') { const m = S.msgs.find(x => x.id === S.ui.mm); if (!m) return ''; const mine = m.from === S.me; const RX = ['❤️', '😂', '😮', '😢', '🔥', '👍']; const myr = (m.rx || {})[S.me];
+    h = `<div class="mmprev">${esc(snip(m)).slice(0, 160)}</div><div class="mrxbar">${RX.map(e => `<button class="${myr === e ? 'on' : ''}" data-act="mreact" data-e="${e}">${e}</button>`).join('')}</div><div class="mmenu"><button data-act="mreply">${ic('reply')} Répondre</button>${m.t === 'text' ? `<button data-act="mcopy">${ic('copy')} Copier</button>` : ''}${mine && m.t === 'text' ? `<button data-act="medit">${ic('pencil')} Modifier</button>` : ''}${m.t === 'img' || m.t === 'gif' ? `<button data-act="viewimg" data-id="${m.id}">${ic('image')} Voir en grand</button>` : ''}${mine ? `<button class="danger" data-act="mdel">${ic('trash')} Supprimer pour tous</button>` : ''}</div>`; }
+  else if (s === 'img') { const m = S.msgs.find(x => x.id === S.ui.view); if (!m) return ''; const src = m.t === 'gif' ? m.u : m.d; h = `<img class="vimg" src="${esc(src)}" alt=""><div class="actions">${m.t === 'img' ? `<a class="btn ghost" href="${esc(src)}" download="fuzo-photo.jpg">${ic('download')} Enregistrer</a>` : ''}<button class="btn primary" data-act="closesheet">Fermer</button></div>`; }
+  else if (s === 'gif') { const g = S.ui.gif || {}; h = `<h2>${ic('gif')} Envoyer un GIF</h2><form data-form="gifq" class="row mt"><input class="field grow" name="q" value="${esc(g.q || '')}" placeholder="Rechercher sur GIPHY…" autocomplete="off" enterkeyhint="search"><button class="btn primary sq" aria-label="Rechercher">${ic('search')}</button></form><label class="btn ghost sm mt">${ic('image')} Un GIF de mon téléphone<input type="file" id="chatImg" accept="image/gif,image/*" hidden></label>${g.err ? `<p class="hint-txt">${esc(g.err)}</p>` : ''}${g.loading ? '<div class="spin"></div>' : `<div class="gifgrid">${(g.res || []).map((r, i) => `<button class="gifc" data-act="gifsend" data-i="${i}" style="aspect-ratio:${r.w}/${r.h}"><img src="${esc(r.p)}" loading="lazy" alt=""></button>`).join('')}</div>`}${GIPHY_KEY ? '<p class="giphy">Powered by GIPHY</p>' : ''}`; }
+  else if (s === 'plus') h = `<h2>Envoyer…</h2><div class="col mt"><div class="plus2"><label class="btn block">${ic('image')} Photo<input type="file" id="chatImg" accept="image/*" hidden></label><button class="btn block" data-act="gifs">${ic('gif')} GIF</button></div><button class="btn block" data-act="sheet" data-s="rdv">${ic('calplus')} Une proposition de rendez-vous</button><button class="btn block" data-act="sheet" data-s="invite">${ic('games')} Une invitation à jouer</button><button class="btn block" data-act="wizz">${ic('vibrate')} Un Wizz</button></div><div class="reacts">${H.reactBar()}</div>`;
   else if (s === 'invite') h = `<h2>Inviter à jouer</h2><div class="worlds mt">${ORDER.map(k => { const W = WORLDS[k]; return `<button class="wcard" data-act="launch" data-t="${k}"><div class="scene" style="background:${W.tint};height:80px">${W.scene}</div><div class="wt"><h3 style="font-size:16px">${esc(W.name)}</h3></div></button>`; }).join('')}</div>`;
   else if (s === 'install') { const ios = /iphone|ipad|ipod/i.test(navigator.userAgent); h = `<h2>${ic('install')} Installer Fuzo</h2>${S.installEvt ? `<div class="actions"><button class="btn primary big block" data-act="install">${ic('download')} Installer maintenant</button></div>` : ''}<div class="how" style="--w-acc:var(--pri);--w-tint:#f1edfd">${ios ? `<div>${ic('share')}<span>Dans Safari, touche le bouton <b>Partager</b> en bas.</span></div><div>${ic('plus')}<span>Choisis <b>Sur l'écran d'accueil</b>.</span></div><div>${ic('check')}<span>Touche <b>Ajouter</b> : Fuzo apparaît comme une appli.</span></div>` : `<div>${ic('dots')}<span>Dans Chrome, ouvre le menu <b>⋮</b> en haut à droite.</span></div><div>${ic('download')}<span>Choisis <b>Installer l'application</b> (ou « Ajouter à l'écran d'accueil »).</span></div><div>${ic('check')}<span>Confirme : Fuzo s'ouvre en plein écran, comme une appli.</span></div>`}</div><div class="actions"><button class="btn ghost" data-act="noinstall">Ne plus afficher</button></div>`; }
   else if (s === 'usekey') h = `<h2>${ic('link')} J'ai déjà un profil</h2><p class="muted mt" style="font-weight:600">Colle la clé Fuzo de ton autre téléphone (Profil → Ma clé Fuzo) pour retrouver ton profil ici.</p><form data-form="usekey"><input class="field mt" name="k" required minlength="16" autocomplete="off" placeholder="Ta clé Fuzo"><button class="btn primary block mt">Retrouver mon profil</button></form>`;
@@ -521,8 +576,30 @@ const ACT = {
   share: async () => { const url = location.origin + location.pathname + '?duo=' + S.code; const text = `Rejoins-moi sur Fuzo pour jouer ensemble ! Code du duo : ${S.code}`; try { if (navigator.share) { await navigator.share({ title: 'Fuzo', text, url }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(text + '\n' + url); toast('Lien copié !'); } catch (e) { toast('Code : ' + S.code); } },
   install: async () => { const e = S.installEvt; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { } S.installEvt = null; S.ui.sheet = null; render(); },
   noinstall: () => { try { LS.set('fuseau-noinstall', '1'); } catch (e) { } S.ui.sheet = null; render(); },
+  cbarx: () => { if (S.ui.edit) { const i = $('#msgIn'); if (i) i.value = ''; } S.ui.edit = null; S.ui.reply = null; render(); },
+  mreply: () => startReply(S.ui.mm),
+  mcopy: async () => { const m = S.msgs.find(x => x.id === S.ui.mm); S.ui.sheet = null; render(); try { await navigator.clipboard.writeText(m.text); toast('Message copié'); } catch (e) { } },
+  medit: () => { const m = S.msgs.find(x => x.id === S.ui.mm); if (!m) return; S.ui.edit = m.id; S.ui.reply = null; S.ui.sheet = null; render(); setTimeout(() => { const i = $('#msgIn'); if (i) { i.value = m.text; i.focus(); i.closest('.composer').classList.add('typed'); } }, 60); },
+  mdel: () => { S.ui.confirm = { t: 'Supprimer ce message ?', s: `Il sera supprimé pour toi et pour ${partner() ? nm(partner()) : 'ton duo'}.`, ok: 'Supprimer', a: 'dodelmsg' }; S.ui.sheet = 'confirm'; render(); },
+  dodelmsg: () => { const m = S.msgs.find(x => x.id === S.ui.mm); if (!m || m.from !== S.me) return; S.B.set(duoPath(`msgs/${m.id}`), { t: 'del', from: m.from, at: m.at }); if (S.ui.reply && S.ui.reply.id === m.id) S.ui.reply = null; sfx('back'); },
+  mreact: d => { const m = S.msgs.find(x => x.id === S.ui.mm); if (!m) return; const off = (m.rx || {})[S.me] === d.e; S.B.merge(duoPath(`msgs/${m.id}`), { rx: { [S.me]: off ? null : d.e } }); S.ui.sheet = null; sfx('tap'); render(); if (!off && m.from !== S.me) notifyPartner(`${nm(S.me)} a réagi ${d.e} à ton message`, '#/chat'); },
+  jump: d => { const el = document.querySelector(`.msg[data-mid="${d.id}"]`); if (!el) { toast('Message trop ancien'); return; } el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); },
+  viewimg: d => { S.ui.view = d.id; S.ui.sheet = 'img'; render(); },
+  vplay: d => {
+    if (S.ui.playing === d.id && VA) { VA.pause(); VA = null; S.ui.playing = null; render(); return; }
+    if (VA) VA.pause(); const m = S.msgs.find(x => x.id === d.id); if (!m) return;
+    const a = VA = new Audio(m.d); S.ui.playing = d.id;
+    a.ontimeupdate = () => { const b = document.getElementById('vb-' + d.id); if (b && a.duration && isFinite(a.duration)) b.style.width = (a.currentTime / a.duration * 100) + '%'; else if (b) b.style.width = Math.min(100, a.currentTime / (m.dur || 1) * 100) + '%'; };
+    a.onended = () => { if (VA === a) { VA = null; S.ui.playing = null; render(); } };
+    a.play().catch(() => { VA = null; S.ui.playing = null; toast('Lecture impossible sur cet appareil'); render(); }); render();
+  },
+  recstart: () => recStart(),
+  recsend: () => recStop(true),
+  reccancel: () => { recStop(false); sfx('back'); },
+  gifs: () => { S.ui.sheet = 'gif'; render(); if (!S.ui.gif || (!S.ui.gif.res && !S.ui.gif.loading)) gifLoad(''); },
+  gifsend: d => { const r = ((S.ui.gif || {}).res || [])[+d.i]; if (!r) return; S.ui.sheet = null; sendMsg({ t: 'gif', u: r.u, w: r.w, h: r.h }, 'GIF'); },
   emotog: () => { S.ui.emo = !S.ui.emo; render(); },
-  emoins: d => { const i = $('#msgIn'); if (i) { i.value += d.e; i.focus(); } sfx('key'); },
+  emoins: d => { const i = $('#msgIn'); if (i) { i.value += d.e; i.focus(); i.closest('.composer').classList.add('typed'); } sfx('key'); },
   keycopy: async () => { try { await navigator.clipboard.writeText(S.me); toast('Clé copiée ! Garde-la en lieu sûr.'); } catch (e) { toast(S.me); } },
   ntfyon: () => { const A = 'abcdefghijkmnpqrstuvwxyz23456789'; const t = 'fuzo-' + Array.from({ length: 10 }, () => A[Math.random() * A.length | 0]).join(''); S.B.merge(`users/${S.me}`, { ntfy: t }); sfx('coin'); },
   ntfyoff: () => { S.B.merge(`users/${S.me}`, { ntfy: null }); },
@@ -551,7 +628,10 @@ const FORMS = {
   hist: f => { const v = f.t.value.trim(); if (v.length < 3) return; if (G.hist.add(S.g, v)) f.t.value = ''; },
   photo: f => { const p = S.ui.ph; if (!p || !S.g || p.id !== S.g.id) return; G.photo.post(S.g, p.d, f.c.value.trim()); },
   cq: f => { const v = f.v.value.trim(); if (!v) return; f.v.value = ''; G.cq.guess(S.g, v); },
-  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; if (S.ui.emo) { S.ui.emo = false; render(); } S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); notifyPartner(v, '#/chat', nm(S.me)); },
+  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; f.classList.remove('typed'); if (S.ui.emo) S.ui.emo = false;
+    if (S.ui.edit) { const id = S.ui.edit; S.ui.edit = null; S.B.merge(duoPath(`msgs/${id}`), { text: v.slice(0, 1000), ed: now() }); sfx('send'); render(); return; }
+    sendMsg({ t: 'text', text: v.slice(0, 1000) }, v); },
+  gifq: f => { const q = f.q.value.trim(); f.q.blur(); gifLoad(q); },
   rdv: f => { const when = new Date(`${f.d.value}T${f.h.value}`).getTime(); if (!when || when < now() - 60000) { toast('Choisis une date à venir'); return; } S.B.add(duoPath('msgs'), { t: 'rdv', from: S.me, when, game: f.g.value || null, note: f.n.value.trim().slice(0, 120), st: 'open', at: now() }); { const op = partner(); notifyPartner(`${nm(S.me)} te propose un rendez-vous : ${fmtWhen(when, op && P(op).tz)}`, '#/chat'); } S.ui.sheet = null; sfx('send'); toast('Proposition envoyée'); go('#/chat'); },
   signup: f => authDo(() => S.B.signUp(f.email.value.trim(), f.pw.value)),
   login: f => authDo(() => S.B.signIn(f.email.value.trim(), f.pw.value)),
@@ -579,10 +659,22 @@ const AUTH_ERR = { 'auth/email-already-in-use': 'Cette adresse a déjà un compt
 async function authDo(fn) { S.ui.busy = true; S.ui.err = ''; render(); try { await fn(); } catch (e) { S.ui.err = AUTH_ERR[e.code] || ('Erreur : ' + (e.code || e.message)); } S.ui.busy = false; render(); }
 function rdvPreview() { const f = document.querySelector('form[data-form="rdv"]'); const el = $('#rdvPrev'); const op = partner(); if (!f || !el || !op || !P(op).tz) return; const w = new Date(`${f.d.value}T${f.h.value}`).getTime(); el.textContent = w ? `Pour ${nm(op)}, ce sera ${fmtWhen(w, P(op).tz)}.` : ''; }
 
-document.addEventListener('click', e => { const t = e.target.closest('[data-act]'); if (!t) return; if (t.dataset.act === 'ovbg' && e.target !== t) return; const a = ACT[t.dataset.act]; if (a) { if (t.tagName !== 'LABEL') e.preventDefault(); a(t.dataset, t, e); if (t.classList.contains('toast')) t.remove(); } });
+document.addEventListener('click', e => { if (S.lpAt && Date.now() - S.lpAt < 600 && e.target.closest('.msgs')) { e.preventDefault(); return; } const t = e.target.closest('[data-act]'); if (!t) return; if (t.dataset.act === 'ovbg' && e.target !== t) return; const a = ACT[t.dataset.act]; if (a) { if (t.tagName !== 'LABEL') e.preventDefault(); a(t.dataset, t, e); if (t.classList.contains('toast')) t.remove(); } });
 document.addEventListener('submit', e => { const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form] && FORMS[f.dataset.form](f); });
-document.addEventListener('input', e => { const rk = e.target.dataset && e.target.dataset.set; if (rk) { S.set[rk] = +e.target.value; saveSet(); applyVolumes(); const b = e.target.parentElement.querySelector('b'); if (b) b.textContent = Math.round(S.set[rk] * 100) + ' %'; if (rk === 'vol') sfx('tap'); return; } if (e.target.closest('form[data-form="rdv"]')) rdvPreview(); if (e.target.id === 'msgIn' && S.code && now() - (S.lastTyping || 0) > 3000) { S.lastTyping = now(); S.B.merge(`users/${S.me}`, { typing: now() }); } });
+document.addEventListener('input', e => { if (e.target.id === 'msgIn') { const c = e.target.closest('.composer'); if (c) c.classList.toggle('typed', !!e.target.value.trim() || !!S.ui.edit); } const rk = e.target.dataset && e.target.dataset.set; if (rk) { S.set[rk] = +e.target.value; saveSet(); applyVolumes(); const b = e.target.parentElement.querySelector('b'); if (b) b.textContent = Math.round(S.set[rk] * 100) + ' %'; if (rk === 'vol') sfx('tap'); return; } if (e.target.closest('form[data-form="rdv"]')) rdvPreview(); if (e.target.id === 'msgIn' && S.code && now() - (S.lastTyping || 0) > 3000) { S.lastTyping = now(); S.B.merge(`users/${S.me}`, { typing: now() }); } });
 document.addEventListener('change', e => {
+  if (e.target.id === 'chatImg' && e.target.files[0]) {
+    const file = e.target.files[0]; S.ui.sheet = null; render();
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = async () => {
+      URL.revokeObjectURL(url);
+      if (file.type === 'image/gif') { if (file.size > 700000) { toast('Ce GIF est trop lourd (700 Ko max)'); return; } sendMsg({ t: 'img', d: await blobToData(file), w: img.width, h: img.height }, 'GIF'); return; }
+      const M = 1280, r = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      let q = .78, d = c.toDataURL('image/jpeg', q); while (d.length > 650000 && q > .35) { q -= .1; d = c.toDataURL('image/jpeg', q); }
+      sendMsg({ t: 'img', d, w: c.width, h: c.height }, '📷 Photo');
+    };
+    img.onerror = () => toast('Image illisible'); img.src = url; e.target.value = ''; return;
+  }
   if (e.target.id === 'photoGame' && e.target.files[0] && S.g) {
     const gid = S.g.id; const img = new Image(); img.onload = () => { const M = 1000, r = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); let q = .8, d = c.toDataURL('image/jpeg', q); while (d.length > 600000 && q > .4) { q -= .1; d = c.toDataURL('image/jpeg', q); } S.ui.ph = { id: gid, d }; URL.revokeObjectURL(img.src); sfx('coin'); render(); };
     img.onerror = () => toast('Image illisible'); img.src = URL.createObjectURL(e.target.files[0]); return;
@@ -592,6 +684,13 @@ document.addEventListener('change', e => {
   img.onerror = () => toast('Image illisible'); img.src = URL.createObjectURL(e.target.files[0]);
 });
 document.addEventListener('keydown', e => { const g = S.g; if (routeName() !== 'partie' || !g || g.type !== 'mot' || g.over) return; if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return; if (e.key === 'Enter') G.mot.key(g, 'ENTER'); else if (e.key === 'Backspace') G.mot.key(g, 'DEL'); else if (/^[a-zA-Z]$/.test(e.key)) G.mot.key(g, e.key.toUpperCase()); });
+/* Appui long = menu du message ; glisser vers la droite = répondre */
+let LP = null;
+document.addEventListener('pointerdown', e => { const b = e.target.closest('.msg[data-mid]'); if (!b || e.button > 0) return; const id = b.dataset.mid; LP = { b, id, x: e.clientX, y: e.clientY, dx: 0, sw: false, t: setTimeout(() => { if (!LP || LP.sw) return; S.lpAt = Date.now(); if (S.set.vib && navigator.vibrate) navigator.vibrate(15); LP = null; S.ui.mm = id; S.ui.sheet = 'msgmenu'; sfx('tap'); render(); }, 450) }; });
+document.addEventListener('pointermove', e => { if (!LP) return; const dx = e.clientX - LP.x, dy = e.clientY - LP.y; if (!LP.sw && Math.abs(dy) > 10) { clearTimeout(LP.t); LP = null; return; } if (dx > 14 && dx > Math.abs(dy)) { LP.sw = true; clearTimeout(LP.t); LP.dx = Math.min(80, dx - 14); LP.b.style.transform = `translateX(${LP.dx}px)`; LP.b.classList.toggle('swok', LP.dx > 50); } else if (Math.abs(dx) > 10 && !LP.sw) clearTimeout(LP.t); });
+const lpEnd = () => { if (!LP) return; clearTimeout(LP.t); const { b, sw, dx, id } = LP; LP = null; if (sw) { b.style.transition = 'transform .2s'; b.style.transform = ''; setTimeout(() => { b.style.transition = ''; b.classList.remove('swok'); }, 220); if (dx > 50) { S.lpAt = Date.now(); if (S.set.vib && navigator.vibrate) navigator.vibrate(10); startReply(id); } } };
+document.addEventListener('pointerup', lpEnd); document.addEventListener('pointercancel', lpEnd);
+document.addEventListener('contextmenu', e => { const b = e.target.closest('.msg[data-mid]'); if (!b) return; e.preventDefault(); S.ui.mm = b.dataset.mid; S.ui.sheet = 'msgmenu'; render(); });
 S.navCount = 0;
 addEventListener('hashchange', () => { S.navCount++; S.ui.sheet = null; const r = routeName(); if (r === 'partie' || r === 'solo') { if (!S.g || S.g.id !== routeArg()) { S.ui.gLoaded = false; openGame(routeArg()); maybeIntro(); } } else if (S.gsubs.length) { unsubAll(S.gsubs); S.g = null; } markRead(); render(); });
 function maybeIntro() { setTimeout(() => { const g = S.g; if (!g) return; const k = 'fuseau-intro-' + g.type; if (!LS.get(k)) { try { LS.set(k, '1'); } catch (e) { } S.ui.sheet = 'how'; render(); } }, 600); }
