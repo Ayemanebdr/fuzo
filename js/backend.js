@@ -14,26 +14,18 @@ export function deepMerge(t, s) {
 }
 
 /* ================= Mode démo ================= */
-function demoBackend() {
-  const KEY = 'fuzo-demo-v2';
+export function makeLocal(KEY) {
   let docs = {};
   try { docs = JSON.parse(LS.get(KEY) || '{}'); } catch (e) {}
   const subs = new Set();
   let q = false, sv = null;
   const notify = () => {
     if (!q) { q = true; setTimeout(() => { q = false; subs.forEach(s => s()); }, 0); }
-    clearTimeout(sv); sv = setTimeout(() => { try { LS.set(KEY, JSON.stringify(docs)); } catch (e) {} }, 300);
+    clearTimeout(sv); sv = setTimeout(() => { LS.set(KEY, JSON.stringify(docs)); }, 300);
   };
   const depth = p => p.split('/').length;
   const colDocs = p => Object.keys(docs).filter(k => k.startsWith(p + '/') && depth(k) === depth(p) + 1).map(k => Object.assign({ id: k.split('/').pop() }, clean(docs[k])));
-  let me = LS.get('fuseau-demo-me') || 'demo-1';
-  const userCbs = new Set();
-  const B = {
-    mode: 'demo',
-    uid: () => me,
-    onUser(cb) { userCbs.add(cb); setTimeout(() => cb({ uid: me, email: me + '@demo' }), 0); return () => userCbs.delete(cb); },
-    switchUser(u) { me = u; LS.set('fuseau-demo-me', u); userCbs.forEach(cb => cb({ uid: me, email: me + '@demo' })); },
-    async signUp() {}, async signIn() {}, async reset() {}, async signOut() {},
+  return {
     async get(p) { return clean(docs[p]) ?? null; },
     async set(p, d) { docs[p] = clean(d); notify(); },
     async merge(p, d) { docs[p] = deepMerge(docs[p] || {}, d); notify(); },
@@ -51,9 +43,23 @@ function demoBackend() {
       };
       subs.add(s); setTimeout(s, 0); return () => subs.delete(s);
     },
-    resetDemo() { docs = {}; LS.del(KEY); },
+    reset() { docs = {}; LS.del(KEY); },
   };
-  return B;
+}
+
+/* ================= Mode démo ================= */
+function demoBackend() {
+  const L = makeLocal('fuzo-demo-v3');
+  let me = LS.get('fuseau-demo-me') || 'demo-1';
+  const userCbs = new Set();
+  return Object.assign({}, L, {
+    mode: 'demo',
+    uid: () => me,
+    onUser(cb) { userCbs.add(cb); setTimeout(() => cb({ uid: me }), 0); return () => userCbs.delete(cb); },
+    switchUser(u) { me = u; LS.set('fuseau-demo-me', u); userCbs.forEach(cb => cb({ uid: me })); },
+    async signOut() {},
+    resetDemo() { L.reset(); },
+  });
 }
 
 /* ================= Firebase ================= */

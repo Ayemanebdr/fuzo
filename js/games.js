@@ -4,6 +4,16 @@ import { TELE, DEV, DEVCATS, CQW, WORDS, DECKS } from './content.js';
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pickN = (n, len) => shuffle([...Array(len).keys()]).slice(0, n);
+// Anti-répétition : on évite ce qui a déjà été joué sur ce téléphone, jusqu'à épuisement du stock
+export function fresh(key, len, n, filter) {
+  let seen = []; try { seen = JSON.parse(localStorage.getItem('fuzo-seen-' + key) || '[]'); } catch (e) { }
+  const all = [...Array(len).keys()].filter(i => !filter || filter(i));
+  let pool = all.filter(i => !seen.includes(i));
+  if (pool.length < n) { seen = seen.filter(i => !all.includes(i)); pool = all; }
+  const out = shuffle(pool).slice(0, n);
+  try { localStorage.setItem('fuzo-seen-' + key, JSON.stringify(seen.concat(out).slice(-2000))); } catch (e) { }
+  return out;
+}
 const rnd = a => a[Math.random() * a.length | 0];
 export const obf = s => btoa(unescape(encodeURIComponent(s))).split('').reverse().join('');
 export const deobf = s => { try { return decodeURIComponent(escape(atob(String(s).split('').reverse().join('')))); } catch (e) { return ''; } };
@@ -14,6 +24,7 @@ const L3 = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0
 const win3 = (a, ch) => L3.some(l => l.every(i => a[i] === ch));
 function p4line(b, idx, ch) { const r = idx / 7 | 0, c = idx % 7; for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) { const cells = [idx]; for (const s of [1, -1]) { let rr = r + dr * s, cc = c + dc * s; while (rr >= 0 && rr < 6 && cc >= 0 && cc < 7 && b[rr * 7 + cc] === ch) { cells.push(rr * 7 + cc); rr += dr * s; cc += dc * s; } } if (cells.length >= 4) return cells; } return null; }
 
+export { win3, p4line, L3 };
 export function makeGames(H) {
   const op = g => g.players.find(x => x !== H.me());
   const waitFor = (uid, txt) => `<div class="status">${esc(txt || H.nm(uid) + ' réfléchit')}<span class="typing"><i></i><i></i><i></i></span></div>`;
@@ -24,11 +35,11 @@ export function makeGames(H) {
   /* ---------- Télépathie ---------- */
   G.tele = {
     N: 8,
-    init: () => ({ phase: 'answer', data: { q: pickN(8, TELE.length), hist: {}, ok: {} } }),
+    init: () => ({ phase: 'answer', data: { q: fresh('tele', TELE.length, 8), hist: {}, ok: {} } }),
     hits(g) { let n = 0; for (const r in g.data.hist) { const h = g.data.hist[r]; const v = g.players.map(p => h[p]); if ((g.data.ok && g.data.ok[r]) || (norm(v[0]) === norm(v[1]) && norm(v[0]))) n++; } return n; },
     turn(g) { return g.phase === 'answer' ? H.ans(H.me()) === undefined : g.phase === 'reveal'; },
     view(g) {
-      const o = op(g), r = g.round, pr = TELE[g.data.q[r]];
+      const o = op(g), r = g.round, pr = TELE[g.data.q[r]].p;
       let h = H.scorebar(g, { left: [H.me(), o], label: `Manche ${r + 1}/${this.N}`, center: `<b>${this.hits(g)}</b><small>connexions</small>` });
       h += `<div class="prompt" data-k="tp-${r}"><div class="lab">Pensez à…</div><h2>${esc(pr)}</h2></div>`;
       if (g.phase === 'answer') {
@@ -51,14 +62,14 @@ export function makeGames(H) {
     },
     ok(g) { H.patch({ data: { ok: { [g.round]: true } } }); H.confetti(60); H.sfx('coin'); },
     next(g) { if (g.round + 1 >= this.N) { const s = this.hits(g); H.patch({ over: true, phase: 'over' }); H.record(g, { s }); } else H.patch({ round: g.round + 1, phase: 'answer' }); },
-    over(g) { const s = this.hits(g); const m = s >= 7 ? ['brain', 'Télépathes certifiés !'] : s >= 5 ? ['bolt', 'Super connexion !'] : s >= 3 ? ['planet', 'Le signal passe…'] : ['moon', 'Réglez vos antennes !']; return { icon: m[0], t: m[1], sub: `${s} connexion${s > 1 ? 's' : ''} sur ${this.N}`, coop: true, list: Object.keys(g.data.hist).map(r => { const hh = g.data.hist[r]; return `<div class="dl"><b>${esc(TELE[g.data.q[r]])}</b><span>${g.players.map(p => esc(hh[p])).join(' · ')}</span></div>`; }).join('') }; },
+    over(g) { const s = this.hits(g); const m = s >= 7 ? ['brain', 'Télépathes certifiés !'] : s >= 5 ? ['bolt', 'Super connexion !'] : s >= 3 ? ['planet', 'Le signal passe…'] : ['moon', 'Réglez vos antennes !']; return { icon: m[0], t: m[1], sub: `${s} connexion${s > 1 ? 's' : ''} sur ${this.N}`, coop: true, list: Object.keys(g.data.hist).map(r => { const hh = g.data.hist[r]; return `<div class="dl"><b>${esc(TELE[g.data.q[r]].p)}</b><span>${g.players.map(p => esc(hh[p])).join(' · ')}</span></div>`; }).join('') }; },
     summary(g) { return `${this.hits(g)}/8 connexions`; },
   };
 
   /* ---------- Devine-moi ---------- */
   G.dev = {
     N: 8, setup: 'dev',
-    init: (b, o) => { const pool = DEV.map((q, i) => i).filter(i => o.cat === 'mix' || DEV[i].c === o.cat); return { phase: 'answer', data: { cat: o.cat, q: shuffle(pool).slice(0, 8), hist: {} } }; },
+    init: (b, o) => ({ phase: 'answer', data: { cat: o.cat, q: fresh('dev', DEV.length, 8, i => o.cat === 'mix' || DEV[i].c === o.cat), hist: {} } }),
     pts(g) { const s = {}; g.players.forEach(p => s[p] = 0); for (const r in g.data.hist) { const h = g.data.hist[r]; const [a, b] = g.players; if (h[a] && h[b]) { if (h[a].g === h[b].s) s[a]++; if (h[b].g === h[a].s) s[b]++; } } return s; },
     turn(g) { return g.phase === 'answer' ? H.ans(H.me()) === undefined : g.phase === 'reveal'; },
     view(g) {
@@ -94,7 +105,7 @@ export function makeGames(H) {
   /* ---------- Croquis ---------- */
   G.cq = {
     N: 6, T: 80,
-    init: () => ({ phase: 'pick', data: { sets: pickN(18, CQW.length), hist: {} } }),
+    init: () => ({ phase: 'pick', data: { sets: fresh('cq', CQW.length, 18), hist: {} } }),
     drawer: g => g.players[g.round % 2],
     pts: t => t < 25 ? 3 : t < 50 ? 2 : 1,
     total(g) { let s = 0; for (const r in g.data.hist) { const h = g.data.hist[r]; if (h.f) s += this.pts(h.t); } return s; },
@@ -177,7 +188,7 @@ export function makeGames(H) {
 
   /* ---------- Mot mystère ---------- */
   G.mot = {
-    init: () => ({ phase: 'play', data: { w: obf(rnd(WORDS)) } }),
+    init: () => ({ phase: 'play', data: { w: obf(WORDS[fresh('mot', WORDS.length, 1)[0]]) } }),
     st(uid) { return H.pdoc(uid).w || { rows: [], done: false, ok: false }; },
     turn(g) { return !this.st(H.me()).done; },
     marks(gs, w) { const m = Array(5).fill('b'), c = {}; for (let i = 0; i < 5; i++) { if (gs[i] === w[i]) m[i] = 'g'; else c[w[i]] = (c[w[i]] || 0) + 1; } for (let i = 0; i < 5; i++) if (m[i] !== 'g' && c[gs[i]] > 0) { m[i] = 'y'; c[gs[i]]--; } return m.join(''); },
@@ -240,14 +251,15 @@ export function makeGames(H) {
       }
       return h + `</div>`;
     },
-    play(g, k) {
+    legal(g) { const d = g.data, L = []; for (let k = 0; k < 81; k++) { const b = k / 9 | 0; if (d.c[k] === '.' && d.m[b] === '.' && (d.n < 0 || d.n === b)) L.push(k); } return L; },
+    play(g, k, who = H.me()) {
       const d = clone(g.data), b = k / 9 | 0, i = k % 9;
-      if (g.turn !== H.me() || g.over || d.c[k] !== '.' || d.m[b] !== '.' || (d.n >= 0 && d.n !== b)) return H.sfx('fail');
-      const s = this.sym(g, H.me()); const c = [...d.c]; c[k] = s; d.c = c.join(''); const mini = c.slice(b * 9, b * 9 + 9); const m = [...d.m];
+      if (g.turn !== who || g.over || d.c[k] !== '.' || d.m[b] !== '.' || (d.n >= 0 && d.n !== b)) return H.sfx('fail');
+      const s = this.sym(g, who); const c = [...d.c]; c[k] = s; d.c = c.join(''); const mini = c.slice(b * 9, b * 9 + 9); const m = [...d.m];
       let wonMini = false; if (win3(mini, s)) { m[b] = s; wonMini = true; } else if (!mini.includes('.')) m[b] = '=';
       d.m = m.join(''); d.n = m[i] === '.' ? i : -1; d.last = k;
-      const o = op(g); let over = false, winner = null;
-      if (win3(m, s)) { over = true; winner = H.me(); }
+      const o = g.players.find(x => x !== who); let over = false, winner = null;
+      if (win3(m, s)) { over = true; winner = who; }
       else if (!m.includes('.')) { over = true; const cx = m.filter(x => x === 'X').length, co = m.filter(x => x === 'O').length, ox = d.X, oo = g.players.find(p => p !== ox); winner = cx > co ? ox : co > cx ? oo : null; }
       H.setG(Object.assign({}, g, { data: d, turn: over ? null : o, over, winner, phase: over ? 'over' : 'play' }));
       H.sfx(wonMini ? 'coin' : 'place'); if (wonMini && !over) H.confetti(40);
@@ -272,12 +284,12 @@ export function makeGames(H) {
       for (let c = 0; c < 7; c++) { h += `<div class="p4c" data-act="p4" data-c="${c}">`; for (let r = 0; r < 6; r++) { const i = r * 7 + c, v = d.b[i]; h += `<div class="hole">${v !== '.' ? `<div class="piece ${v} ${i === d.last && anim ? 'drop' : ''} ${(d.line || []).includes(i) ? 'win' : ''}" style="--d:${r + 1}"></div>` : ''}</div>`; } h += '</div>'; }
       return h + '</div>';
     },
-    play(g, c) {
-      const d = clone(g.data); if (g.turn !== H.me() || g.over) return H.sfx('fail');
+    play(g, c, who = H.me()) {
+      const d = clone(g.data); if (g.turn !== who || g.over) return H.sfx('fail');
       let idx = -1; for (let r = 5; r >= 0; r--) if (d.b[r * 7 + c] === '.') { idx = r * 7 + c; break; } if (idx < 0) return H.sfx('fail');
-      const s = this.sym(g, H.me()), b = [...d.b]; b[idx] = s; d.b = b.join(''); d.last = idx;
-      const line = p4line(d.b, idx, s); const o = op(g); let over = false, winner = null;
-      if (line) { over = true; winner = H.me(); d.line = line; } else if (!d.b.includes('.')) over = true;
+      const s = this.sym(g, who), b = [...d.b]; b[idx] = s; d.b = b.join(''); d.last = idx;
+      const line = p4line(d.b, idx, s); const o = g.players.find(x => x !== who); let over = false, winner = null;
+      if (line) { over = true; winner = who; d.line = line; } else if (!d.b.includes('.')) over = true;
       H.setG(Object.assign({}, g, { data: d, turn: over ? null : o, over, winner, phase: over ? 'over' : 'play' })); setTimeout(() => H.sfx('land'), 380);
       if (over) H.record(g, { w: winner }); turnMsg(g, over, 'Puissance 4');
     },
@@ -288,7 +300,7 @@ export function makeGames(H) {
   /* ---------- Cartes à parler ---------- */
   G.cartes = {
     setup: 'cartes',
-    init: (b, o) => ({ phase: 'card', data: { deck: o.cat, order: shuffle([...DECKS[o.cat].cards.keys()]), i: 0 } }),
+    init: (b, o) => { const n = DECKS[o.cat].cards.length; const f = fresh('deck-' + o.cat, n, n); return { phase: 'card', data: { deck: o.cat, order: f, i: 0 } }; },
     turn: () => false,
     view(g) {
       const d = g.data, D = DECKS[d.deck], n = d.order.length, i = Math.min(d.i, n); const first = g.players[i % 2];
