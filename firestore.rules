@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    // Profils : lisibles par les comptes connectés, modifiables seulement par leur propriétaire
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Duos : on peut lire un duo pour le rejoindre avec son code
+    match /duos/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
+      allow update: if signedIn() && (
+        request.auth.uid in resource.data.members ||
+        (resource.data.members.size() == 1 &&
+         request.resource.data.members == resource.data.members.concat([request.auth.uid]))
+      );
+
+      // Parties, messages, résultats : réservés aux deux membres du duo
+      match /{rest=**} {
+        allow read, write: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/duos/$(code)).data.members;
+      }
+    }
+  }
+}
