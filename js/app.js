@@ -311,7 +311,7 @@ const REC = {};
 async function recStart() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toast("Les notes vocales ne sont pas disponibles sur ce navigateur"); return; }
   if (VA) { VA.pause(); VA = null; S.ui.playing = null; }
-  let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { toast('Autorise le micro pour envoyer une note vocale'); return; }
+  let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { S.ui.micErr = e && e.name; S.ui.sheet = 'mic'; render(); return; }
   const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(x => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(x)) || '';
   let mr; try { mr = new MediaRecorder(st, Object.assign({ audioBitsPerSecond: 32000 }, mime ? { mimeType: mime } : {})); } catch (e) { mr = new MediaRecorder(st); }
   Object.assign(REC, { ch: [], size: 0, mr, st, t0: Date.now(), send: false });
@@ -450,6 +450,12 @@ function sheetHTML() {
     const t0 = new Date(); const pad = n => String(n).padStart(2, '0'); const loc = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; const d = new Date(t0); if (t0.getHours() >= 18) d.setDate(d.getDate() + 1); d.setHours(20, 0, 0, 0); const ds = loc(t0), dd = loc(d), hh = `${pad(d.getHours())}:00`;
     h = `<h2>${ic('calplus')} Proposer un rendez-vous</h2><p class="muted mt" style="font-weight:600">Choisis l'heure chez toi, ${esc(op ? nm(op) : 'ton duo')} la verra à son heure.</p><form data-form="rdv"><div class="rdvgrid"><div><label class="lbl">Jour</label><input class="field" type="date" name="d" value="${dd}" min="${ds}" required></div><div><label class="lbl">Heure (chez toi)</label><input class="field" type="time" name="h" value="${hh}" required></div></div><p class="muted small mt" id="rdvPrev" style="font-weight:700"></p><label class="lbl">Pour jouer à…</label><select class="field" name="g"><option value="">On verra sur le moment</option>${ORDER.map(k => `<option value="${k}">${esc(WORLDS[k].name)}</option>`).join('')}</select><label class="lbl">Un petit mot <span class="muted">(facultatif)</span></label><input class="field" name="n" maxlength="120" placeholder="Prépare-toi à perdre…"><button class="btn primary block big mt2" ${op ? '' : 'disabled'}>${ic('send')} Envoyer la proposition</button></form>`;
   }
+  else if (s === 'mic') { const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), and = /android/i.test(navigator.userAgent), nf = S.ui.micErr === 'NotFoundError';
+    const steps = nf ? [['mic', 'Aucun micro détecté sur cet appareil.'], ['info', "Branche un micro ou un casque avec micro, ou envoie ta note depuis ton téléphone."]]
+      : ios ? [['gear', 'Ouvre l\'appli Réglages de l\'iPhone.'], ['globe', 'Va dans Apps → Safari → Micro (tout en bas, section « Réglages des sites web »).'], ['check', 'Choisis « Demander » ou « Autoriser ».'], ['undo', 'Ferme complètement Fuzo, rouvre-le, retouche le micro et accepte.']]
+      : and ? [['dots', 'Dans Chrome, touche les 3 points ⋮ → Paramètres → Paramètres des sites → Micro.'], ['check', 'Autorise ayemanebdr.github.io (ou retire-le de la liste « Bloqué »).'], ['undo', 'Reviens dans Fuzo et retouche le micro.']]
+      : [['lock', "Clique sur l'icône à gauche de l'adresse (le cadenas ou les réglages)."], ['mic', 'Mets « Micro » sur Autoriser.'], ['undo', 'Recharge la page et retouche le micro.']];
+    h = `<h2>${ic('mic')} ${nf ? 'Pas de micro' : 'Autorise le micro'}</h2><p class="muted mt" style="font-weight:600">${nf ? '' : "Fuzo n'a pas accès au micro de ton appareil. Voici comment l'activer :"}</p><div class="how">${steps.map(([i, t]) => `<div>${ic(i)}<span>${esc(t)}</span></div>`).join('')}</div><div class="actions"><button class="btn primary block" data-act="recstart">${ic('mic')} Réessayer</button></div>`; }
   else if (s === 'msgmenu') { const m = S.msgs.find(x => x.id === S.ui.mm); if (!m) return ''; const mine = m.from === S.me; const RX = ['❤️', '😂', '😮', '😢', '🔥', '👍']; const myr = (m.rx || {})[S.me];
     h = `<div class="mmprev">${esc(snip(m)).slice(0, 160)}</div><div class="mrxbar">${RX.map(e => `<button class="${myr === e ? 'on' : ''}" data-act="mreact" data-e="${e}">${e}</button>`).join('')}</div><div class="mmenu"><button data-act="mreply">${ic('reply')} Répondre</button>${m.t === 'text' ? `<button data-act="mcopy">${ic('copy')} Copier</button>` : ''}${mine && m.t === 'text' ? `<button data-act="medit">${ic('pencil')} Modifier</button>` : ''}${m.t === 'img' || m.t === 'gif' ? `<button data-act="viewimg" data-id="${m.id}">${ic('image')} Voir en grand</button>` : ''}${mine ? `<button class="danger" data-act="mdel">${ic('trash')} Supprimer pour tous</button>` : ''}</div>`; }
   else if (s === 'img') { const m = S.msgs.find(x => x.id === S.ui.view); if (!m) return ''; const src = m.t === 'gif' ? m.u : m.d; h = `<img class="vimg" src="${esc(src)}" alt=""><div class="actions">${m.t === 'img' ? `<a class="btn ghost" href="${esc(src)}" download="fuzo-photo.jpg">${ic('download')} Enregistrer</a>` : ''}<button class="btn primary" data-act="closesheet">Fermer</button></div>`; }
@@ -593,7 +599,7 @@ const ACT = {
     a.onended = () => { if (VA === a) { VA = null; S.ui.playing = null; render(); } };
     a.play().catch(() => { VA = null; S.ui.playing = null; toast('Lecture impossible sur cet appareil'); render(); }); render();
   },
-  recstart: () => recStart(),
+  recstart: () => { if (S.ui.sheet === 'mic') { S.ui.sheet = null; render(); } recStart(); },
   recsend: () => recStop(true),
   reccancel: () => { recStop(false); sfx('back'); },
   gifs: () => { S.ui.sheet = 'gif'; render(); if (!S.ui.gif || (!S.ui.gif.res && !S.ui.gif.loading)) gifLoad(''); },
