@@ -60,20 +60,19 @@ function demoBackend() {
 async function firebaseBackend() {
   const F = await import('./vendor/firebase.js');
   const app = F.initializeApp(firebaseConfig);
-  const auth = F.getAuth(app);
-  try { await F.setPersistence(auth, F.indexedDBLocalPersistence); } catch (e) {}
   let db;
   try { db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
   catch (e) { db = F.initializeFirestore(app, {}); }
-  let current = null;
+  // Identité de l'appareil : une clé secrète longue, gardée sur le téléphone (récupérable via la clé de profil)
+  const A = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let uid = LS.get('fuzo-uid');
+  if (!uid) { uid = Array.from(crypto.getRandomValues(new Uint8Array(22)), x => A[x % A.length]).join(''); LS.set('fuzo-uid', uid); }
   const B = {
     mode: 'firebase',
-    uid: () => current && current.uid,
-    onUser(cb) { return F.onAuthStateChanged(auth, u => { current = u; cb(u ? { uid: u.uid, email: u.email } : null); }); },
-    signUp: (e, p) => F.createUserWithEmailAndPassword(auth, e, p),
-    signIn: (e, p) => F.signInWithEmailAndPassword(auth, e, p),
-    reset: e => F.sendPasswordResetEmail(auth, e),
-    signOut: () => F.signOut(auth),
+    uid: () => uid,
+    onUser(cb) { setTimeout(() => cb({ uid }), 0); return () => { }; },
+    useKey(k) { LS.set('fuzo-uid', k); location.href = location.pathname; },
+    async signOut() { },
     async get(p) { const s = await F.getDoc(F.doc(db, p)); return s.exists() ? s.data() : null; },
     set: (p, d) => F.setDoc(F.doc(db, p), clean(d)),
     merge: (p, d) => F.setDoc(F.doc(db, p), clean(d), { merge: true }),

@@ -309,7 +309,8 @@ function profilView() {
   <div class="set"><span class="row">${ic('vibrate')} Vibrations</span><button class="tog ${S.set.vib ? 'on' : ''}" data-act="setting" data-k="vib"></button></div>
   <div class="set"><span class="row">${ic('install')} Installer l'appli</span><button class="btn ghost sm" data-act="sheet" data-s="install">Comment ?</button></div>
   <div class="set"><span class="row">${ic('info')} Crédits & licences</span><button class="btn ghost sm" data-act="sheet" data-s="credits">Voir</button></div></div>`;
-  h += `<div class="actions mt2">${S.B.mode === 'demo' ? `<button class="btn ghost" data-act="resetdemo">${ic('trash')} Réinitialiser la démo</button>` : `<button class="btn ghost" data-act="logout">${ic('out')} Se déconnecter</button>`}<button class="btn ghost" data-act="leaveduo">${ic('door')} Quitter le duo</button></div>`;
+  if (S.B.mode !== 'demo') h += `<div class="sect"><h2>Ma clé Fuzo</h2></div><div class="card"><p style="font-weight:700">Ta clé secrète te permet de retrouver ton profil, tes parties et vos messages sur un autre téléphone. Garde-la pour toi.</p><div class="code small-code" data-act="keycopy">${esc(S.me)}</div><div class="actions"><button class="btn ghost sm" data-act="keycopy">${ic('copy')} Copier ma clé</button><button class="btn ghost sm" data-act="sheet" data-s="usekey">${ic('link')} Utiliser une autre clé</button></div></div>`;
+  h += `<div class="actions mt2">${S.B.mode === 'demo' ? `<button class="btn ghost" data-act="resetdemo">${ic('trash')} Réinitialiser la démo</button>` : ''}<button class="btn ghost" data-act="leaveduo">${ic('door')} Quitter le duo</button></div>`;
   return h;
 }
 function ntfyCard() {
@@ -332,7 +333,8 @@ function authView() {
 function editProfileView(first) {
   const p = S.prof || {}; const f = S.ui.pf || (S.ui.pf = { avatar: p.avatar || { t: 'preset', id: AVATARS[Math.random() * 12 | 0] }, col: p.col || COLORS[0], tab: p.avatar && p.avatar.t === 'photo' ? 'photo' : 'adv' });
   const cur = f.avatar.t === 'photo' ? f.avatar.d : `assets/avatars/${f.avatar.id}.svg`;
-  let h = `<div class="gbar">${first ? '<span></span>' : `<button class="ib" data-act="canceledit">${ic('x')}</button>`}<div class="gname" style="color:var(--ink)">${first ? 'Crée ton profil' : 'Mon profil'}</div><span style="width:42px"></span></div>`;
+  let h = first ? `<div class="auth-hero" style="margin-top:-6px">${HERO}</div><h1 class="wm-big center" style="display:flex;justify-content:center">${WORDMARK}</h1><p class="center muted" style="font-weight:700;margin:6px 0 14px">Des jeux à deux, peu importe les kilomètres.</p>` : '';
+  h += `<div class="gbar">${first ? '<span></span>' : `<button class="ib" data-act="canceledit">${ic('x')}</button>`}<div class="gname" style="color:var(--ink)">${first ? 'Crée ton profil' : 'Mon profil'}</div><span style="width:42px"></span></div>`;
   h += `<form data-form="profile"><div class="center"><span class="av xl" style="--rc:${esc(f.col)}"><img src="${esc(cur)}" alt=""></span></div>`;
   h += `<div class="tabs">${AV_TABS.map(([k, l]) => `<button type="button" class="${f.tab === k ? 'on' : ''}" data-act="avtab" data-t="${k}">${l}</button>`).join('')}</div>`;
   if (f.tab === 'photo') h += `<div class="card mt center"><p style="font-weight:700">Choisis une photo de toi.</p><p class="muted small" style="font-weight:600;margin-top:4px">Elle est recadrée en carré et allégée automatiquement.</p><label class="btn primary mt" style="display:inline-flex">${ic('camera')} Choisir une photo<input type="file" accept="image/*" id="photoIn" hidden></label></div>`;
@@ -344,12 +346,13 @@ function editProfileView(first) {
   h += `<label class="lbl">Ton anniversaire <span class="muted">(facultatif)</span></label><input class="field" type="date" name="bday" value="${esc(p.bday || '')}">`;
   h += `<label class="lbl">Ton jeu préféré</label><select class="field" name="fav"><option value="">—</option>${ORDER.map(k => `<option value="${k}" ${p.fav === k ? 'selected' : ''}>${esc(WORLDS[k].name)}</option>`).join('')}</select>`;
   h += `<button class="btn primary big block mt2">${first ? "C'est parti" : 'Enregistrer'}</button></form>`;
+  if (first && S.B.mode !== 'demo') h += `<div class="actions"><button class="link" data-act="sheet" data-s="usekey">J'ai déjà un profil Fuzo sur un autre téléphone</button></div>`;
   return h;
 }
 function duoSetupView() {
   const code = S.ui.joinCode || new URLSearchParams(location.search).get('duo') || '';
   return `<div class="center mt2">${av(S.me, 'xl')}<h1 class="h1 mt">Bienvenue ${esc(S.prof.name)} !</h1><p class="muted mt" style="font-weight:700">Dernière étape : relier ton compte à celui de ton duo.</p></div>
-  <form class="card mt2" data-form="joinduo"><h2 class="h2">${ic('link')} J'ai reçu un code</h2><input class="field mt" name="code" maxlength="6" value="${esc(code.toUpperCase())}" placeholder="EX. K7P2QX" style="text-transform:uppercase;letter-spacing:.2em;font-family:'Baloo 2';font-size:24px;text-align:center" required>${S.ui.err ? `<div class="err">${esc(S.ui.err)}</div>` : ''}<button class="btn primary block mt">Rejoindre le duo</button></form>
+  <form class="card mt2" data-form="joinduo"><h2 class="h2">${ic('link')} J'ai reçu un code</h2><input class="field mt" name="code" maxlength="12" value="${esc(code.toUpperCase())}" placeholder="EX. K7P2QX9MHT" style="text-transform:uppercase;letter-spacing:.2em;font-family:'Baloo 2';font-size:24px;text-align:center" required>${S.ui.err ? `<div class="err">${esc(S.ui.err)}</div>` : ''}<button class="btn primary block mt">Rejoindre le duo</button></form>
   <div class="card mt"><h2 class="h2">${ic('plus')} Je crée notre duo</h2><p class="muted mt" style="font-weight:600">Tu obtiens un code à envoyer à ton duo.</p><button class="btn ghost block mt" data-act="createduo">Créer un duo</button></div>`;
 }
 /* ---------- feuilles (bottom sheets) ---------- */
@@ -367,6 +370,7 @@ function sheetHTML() {
   else if (s === 'plus') h = `<h2>Envoyer…</h2><div class="col mt"><button class="btn block" data-act="sheet" data-s="rdv">${ic('calplus')} Une proposition de rendez-vous</button><button class="btn block" data-act="sheet" data-s="invite">${ic('games')} Une invitation à jouer</button><button class="btn block" data-act="wizz">${ic('vibrate')} Un Wizz</button></div><div class="reacts">${H.reactBar()}</div>`;
   else if (s === 'invite') h = `<h2>Inviter à jouer</h2><div class="worlds mt">${ORDER.map(k => { const W = WORLDS[k]; return `<button class="wcard" data-act="launch" data-t="${k}"><div class="scene" style="background:${W.tint};height:80px">${W.scene}</div><div class="wt"><h3 style="font-size:16px">${esc(W.name)}</h3></div></button>`; }).join('')}</div>`;
   else if (s === 'install') { const ios = /iphone|ipad|ipod/i.test(navigator.userAgent); h = `<h2>${ic('install')} Installer Fuzo</h2>${S.installEvt ? `<div class="actions"><button class="btn primary big block" data-act="install">${ic('download')} Installer maintenant</button></div>` : ''}<div class="how" style="--w-acc:var(--pri);--w-tint:#f1edfd">${ios ? `<div>${ic('share')}<span>Dans Safari, touche le bouton <b>Partager</b> en bas.</span></div><div>${ic('plus')}<span>Choisis <b>Sur l'écran d'accueil</b>.</span></div><div>${ic('check')}<span>Touche <b>Ajouter</b> : Fuzo apparaît comme une appli.</span></div>` : `<div>${ic('dots')}<span>Dans Chrome, ouvre le menu <b>⋮</b> en haut à droite.</span></div><div>${ic('download')}<span>Choisis <b>Installer l'application</b> (ou « Ajouter à l'écran d'accueil »).</span></div><div>${ic('check')}<span>Confirme : Fuzo s'ouvre en plein écran, comme une appli.</span></div>`}</div><div class="actions"><button class="btn ghost" data-act="noinstall">Ne plus afficher</button></div>`; }
+  else if (s === 'usekey') h = `<h2>${ic('link')} J'ai déjà un profil</h2><p class="muted mt" style="font-weight:600">Colle la clé Fuzo de ton autre téléphone (Profil → Ma clé Fuzo) pour retrouver ton profil ici.</p><form data-form="usekey"><input class="field mt" name="k" required minlength="16" autocomplete="off" placeholder="Ta clé Fuzo"><button class="btn primary block mt">Retrouver mon profil</button></form>`;
   else if (s === 'credits') h = `<h2>Crédits</h2><div class="col mt" style="font-weight:600;font-size:14.5px;line-height:1.5"><p><b>Avatars</b> : générés avec DiceBear. « Adventurer » de Lisa Wischofsky, « Big Smile » d'Ashley Seo et « Micah » de Micah Lanier (CC BY 4.0) ; « Open Peeps » de Pablo Stanley (CC0).</p><p><b>Icônes</b> : Phosphor Icons (licence MIT).</p><p><b>Polices</b> : Baloo 2 et Nunito (SIL Open Font License).</p><p><b>Sons</b> : Kenney (kenney.nl), starter kits sous licence MIT.</p><p><b>Illustrations des univers</b> : créées pour Fuzo.</p></div>`;
   else if (s === 'confirm') { const c = S.ui.confirm || {}; h = `<h2>${esc(c.t)}</h2><p class="muted mt" style="font-weight:600">${esc(c.s)}</p><div class="actions"><button class="btn coral" data-act="confirmok">${esc(c.ok || 'Confirmer')}</button><button class="btn ghost" data-act="closesheet">Annuler</button></div>`; }
   if (!h) return '';
@@ -463,6 +467,7 @@ const ACT = {
   share: async () => { const url = location.origin + location.pathname + '?duo=' + S.code; const text = `Rejoins-moi sur Fuzo pour jouer ensemble ! Code du duo : ${S.code}`; try { if (navigator.share) { await navigator.share({ title: 'Fuzo', text, url }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(text + '\n' + url); toast('Lien copié !'); } catch (e) { toast('Code : ' + S.code); } },
   install: async () => { const e = S.installEvt; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { } S.installEvt = null; S.ui.sheet = null; render(); },
   noinstall: () => { try { LS.set('fuseau-noinstall', '1'); } catch (e) { } S.ui.sheet = null; render(); },
+  keycopy: async () => { try { await navigator.clipboard.writeText(S.me); toast('Clé copiée ! Garde-la en lieu sûr.'); } catch (e) { toast(S.me); } },
   ntfyon: () => { const A = 'abcdefghijkmnpqrstuvwxyz23456789'; const t = 'fuzo-' + Array.from({ length: 10 }, () => A[Math.random() * A.length | 0]).join(''); S.B.merge(`users/${S.me}`, { ntfy: t }); sfx('coin'); },
   ntfyoff: () => { S.B.merge(`users/${S.me}`, { ntfy: null }); },
   ntfycopy: async () => { try { await navigator.clipboard.writeText(S.prof.ntfy); toast('Code copié !'); } catch (e) { toast(S.prof.ntfy); } },
@@ -473,7 +478,7 @@ const ACT = {
   avtab: d => { S.ui.pf.tab = d.t; sfx('tap'); render(); },
   avpick: d => { S.ui.pf.avatar = { t: 'preset', id: d.id }; sfx('pop'); render(); },
   colpick: d => { S.ui.pf.col = d.c; sfx('tap'); render(); },
-  createduo: async () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const code = Array.from({ length: 6 }, () => A[Math.random() * A.length | 0]).join(''); try { await S.B.set(`duos/${code}`, { members: [S.me], at: now() }); await S.B.merge(`users/${S.me}`, { duo: code }); sfx('coin'); } catch (e) { S.ui.err = 'Impossible de créer le duo : ' + (e.code || e.message); render(); } },
+  createduo: async () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const code = Array.from(crypto.getRandomValues(new Uint8Array(10)), x => A[x % A.length]).join(''); try { await S.B.set(`duos/${code}`, { members: [S.me], at: now() }); await S.B.merge(`users/${S.me}`, { duo: code }); sfx('coin'); } catch (e) { S.ui.err = 'Impossible de créer le duo : ' + (e.code || e.message); render(); } },
   leaveduo: () => { S.ui.confirm = { t: 'Quitter le duo ?', s: 'Tu ne verras plus vos parties ni vos messages. Tu pourras rejoindre un duo avec un code.', ok: 'Quitter', a: 'doleave' }; S.ui.sheet = 'confirm'; render(); },
   doleave: async () => { const d = S.duo; if (d && d.members) await S.B.merge(`duos/${S.code}`, { members: d.members.filter(m => m !== S.me) }).catch(() => { }); await S.B.merge(`users/${S.me}`, { duo: null }); go('#/'); },
   logout: () => { S.ui.confirm = { t: 'Se déconnecter ?', s: 'Tu pourras te reconnecter avec ton e-mail et ton mot de passe.', ok: 'Déconnexion', a: 'dologout' }; S.ui.sheet = 'confirm'; render(); },
@@ -496,8 +501,9 @@ const FORMS = {
     S.prof = Object.assign({}, S.prof, rec); S.ui.editing = false; S.ui.pf = null; sfx('coin'); render();
     try { await S.B.merge(`users/${S.me}`, rec); } catch (e) { toast("Échec de l'enregistrement : " + (e.code || e.message)); }
   },
+  usekey: f => { const k = f.k.value.trim(); if (k.length < 16 || !/^[A-Za-z0-9]+$/.test(k)) { toast('Clé invalide'); return; } S.B.useKey(k); },
   joinduo: async f => {
-    const code = f.code.value.trim().toUpperCase(); S.ui.err = '';
+    const code = f.code.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); S.ui.err = '';
     try {
       const d = await S.B.get(`duos/${code}`);
       if (!d) { S.ui.err = 'Ce code ne correspond à aucun duo.'; render(); return; }

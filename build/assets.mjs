@@ -74,7 +74,6 @@ for (const [k, f] of Object.entries(SND)) execSync(`ffmpeg -y -loglevel error -i
 /* ---------- Firebase (bundle local) ---------- */
 fs.writeFileSync('fb-entry.js', `
 export { initializeApp } from 'firebase/app';
-export { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, setPersistence, indexedDBLocalPersistence } from 'firebase/auth';
 export { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, setDoc, deleteDoc, addDoc, onSnapshot, query, orderBy, limit, where } from 'firebase/firestore';
 `);
 await esbuild.build({ entryPoints: ['fb-entry.js'], bundle: true, format: 'esm', minify: true, outfile: path.join(ROOT, 'js', 'vendor', 'firebase.js'), target: 'es2020', legalComments: 'none' });
