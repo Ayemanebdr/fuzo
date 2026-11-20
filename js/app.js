@@ -1,4 +1,4 @@
-// Fuseau — appli de jeux à deux, à distance.
+// Fuzo — appli de jeux à deux, à distance.
 import { makeBackend } from './backend.js';
 import { makeGames, esc, shuffle } from './games.js';
 import { WORLDS, ORDER, LOGO, HERO } from './worlds.js';
@@ -9,6 +9,7 @@ const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return
 
 document.body.insertAdjacentHTML('afterbegin', SPRITE);
 const $ = (s, r = document) => r.querySelector(s);
+const WORDMARK = `<span class="wm" aria-label="Fuzo"><span class="wm-f">Fu</span><span class="wm-z">z</span><span class="wm-o"><i></i></span></span>`;
 const ic = (n, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const now = () => Date.now();
 const rid = () => now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -66,6 +67,15 @@ function floatReact(k) { const r = REACTS.find(x => x[0] === k); if (!r) return;
 function shakeScreen() { const a = $('#app'); a.classList.remove('wizz'); void a.offsetWidth; a.classList.add('wizz'); sfx('wizz'); }
 const confetti = (() => { const cv = $('#confetti'), cx = cv.getContext('2d'); let Pp = [], run = false; const fit = () => { cv.width = innerWidth; cv.height = innerHeight; }; addEventListener('resize', fit); fit(); function loop() { cx.clearRect(0, 0, cv.width, cv.height); Pp = Pp.filter(p => p.y < cv.height + 20); Pp.forEach(p => { p.vy += .2; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; if (p.round) { cx.beginPath(); cx.arc(0, 0, p.s / 2.5, 0, 7); cx.fill(); } else cx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); cx.restore(); }); if (Pp.length) requestAnimationFrame(loop); else { run = false; cx.clearRect(0, 0, cv.width, cv.height); } } return n => { for (let i = 0; i < (n || 140); i++) Pp.push({ x: cv.width / 2 + (Math.random() - .5) * 140, y: cv.height * .42, vx: (Math.random() - .5) * 15, vy: -Math.random() * 14 - 4, r: Math.random() * 6, vr: (Math.random() - .5) * .3, s: 7 + Math.random() * 7, c: COLORS[Math.random() * COLORS.length | 0], round: Math.random() < .3 }); if (!run) { run = true; loop(); } }; })();
 
+/* ================= notifications (ntfy) ================= */
+const APP_URL = () => location.origin + location.pathname;
+function pushTo(uid, title, message, hash, force) {
+  const t = P(uid).ntfy; if (!t || !S.B || S.B.mode === 'demo') return;
+  if (!force && online(uid)) return;
+  fetch('https://ntfy.sh/', { method: 'POST', body: JSON.stringify({ topic: t, title, message: String(message).slice(0, 300), click: APP_URL() + (hash || ''), tags: ['video_game'], priority: 4 }) }).catch(() => { });
+}
+const notifyPartner = (msg, hash, title) => { const op = partner(); if (op) pushTo(op, title || `Fuzo · ${nm(S.me)}`, msg, hash); };
+
 /* ================= jeux ================= */
 const gpath = () => duoPath(`games/${S.g.id}`);
 const H = {
@@ -94,17 +104,19 @@ const H = {
     const side = (u, r) => `<div class="side ${r ? 'r' : ''} ${o.turn === u ? 'turn' : ''}">${av(u, 'sm')}<div><small>${u === S.me ? 'Toi' : esc(nm(u))}</small><b>${bd[u] || ''}${sc[u] ?? ''}</b></div></div>`;
     return `<div class="score">${side(S.me)}<div class="mid">${esc(o.label || '')}</div>${side(op, 1)}</div>`;
   },
+  notify: msg => { const g = S.g; if (g) notifyPartner(`${nm(S.me)} ${msg}`, `#/partie/${g.id}`, `Fuzo · ${WORLDS[g.type].name}`); },
   reactBar: () => REACTS.map(([k, c]) => `<button class="rb" style="--c:${c}" data-act="react" data-e="${k}">${ic(k)}</button>`).join(''),
 };
 const G = makeGames(H);
 
 async function newGame(type, opts = {}) {
-  const op = partner(); if (!op) { toast("Ton duo n'a pas encore rejoint ton duo Fuseau"); return; }
+  const op = partner(); if (!op) { toast("Ton duo n'a pas encore rejoint Fuzo"); return; }
   const id = rid(); const base = { type, opts, players: [S.me, op], round: 0, phase: '', data: {}, over: false, winner: null, turn: null, by: S.me, created: now(), ts: now() };
   Object.assign(base, G[type].init(base, opts));
   S.ui.sheet = null; S.ui.dev = null;
   await S.B.set(duoPath(`games/${id}`), base);
   S.B.set(duoPath(`msgs/inv-${id}`), { t: 'invite', from: S.me, game: type, gid: id, at: now() });
+  notifyPartner(`${nm(S.me)} t'invite à jouer à ${WORLDS[type].name}`, `#/partie/${id}`);
   sfx('open'); go(`#/partie/${id}`);
 }
 
@@ -180,7 +192,7 @@ function changed() {
 
 /* ================= écrans ================= */
 function topBar(title) {
-  return `<header class="top"><div class="brand">${LOGO}<span>${title || 'Fuseau'}</span></div><div class="tacts"><button class="ib" data-act="sound" aria-label="Son">${ic(S.set.sound ? 'sound' : 'mute')}</button><button class="ib" data-act="tab" data-h="#/chat" aria-label="Messages">${ic('chat')}${unread() ? `<span class="badge">${unread()}</span>` : ''}</button></div></header>`;
+  return `<header class="top"><div class="brand">${title ? `${LOGO}<span>${title}</span>` : WORDMARK}</div><div class="tacts"><button class="ib" data-act="sound" aria-label="Son">${ic(S.set.sound ? 'sound' : 'mute')}</button><button class="ib" data-act="tab" data-h="#/chat" aria-label="Messages">${ic('chat')}${unread() ? `<span class="badge">${unread()}</span>` : ''}</button></div></header>`;
 }
 function statusOf(uid) { if (typing(uid)) return 'écrit…'; if (online(uid)) return 'en ligne'; const s = P(uid).seen; return s ? `vu ${ago(s)}` : 'pas encore connecté·e'; }
 function gameStatus(g) {
@@ -197,14 +209,15 @@ function homeView() {
   const op = partner(); const p = S.prof;
   let h = topBar();
   const diff = op && P(op).tz ? tzOff(P(op).tz) - tzOff(p.tz || myTz()) : null;
-  h += `<section class="duo"><h1>Salut ${esc(p.name)} !</h1><p class="muted" style="font-weight:700;margin-top:4px">${op ? `${esc(nm(op))} est ${statusOf(op)}` : 'Ton duo n\'a pas encore rejoint Fuseau.'}</p>
+  h += `<section class="duo"><h1>Salut ${esc(p.name)} !</h1><p class="muted" style="font-weight:700;margin-top:4px">${op ? `${esc(nm(op))} ${typing(op) ? 'écrit…' : 'est ' + statusOf(op)}` : 'Ton duo n\'a pas encore rejoint Fuzo.'}</p>
   <div class="duo-row"><button class="person" data-act="sheet" data-s="me">${av(S.me, 'lg', true)}<b>Toi</b><small>${esc(p.city || cityOf(p.tz || myTz()))} · ${timeIn(p.tz || myTz())}</small></button>
   <div class="bridge"><svg viewBox="0 0 96 44"><path id="brg" d="M4 40Q48 -8 92 40" fill="none" stroke="#2a2440" stroke-width="2.2" stroke-dasharray="5 6"><animate attributeName="stroke-dashoffset" values="22;0" dur="1s" repeatCount="indefinite"/></path><g><animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto" path="M4 40Q48 -8 92 40"/><path d="M-8 0l14-3 3 3-3 3zM-1-1l-3-7h4l5 7zM-1 1l-3 7h4l5-7z" fill="#f0745f"/></g></svg>${diff !== null ? `<span class="gap">${diff === 0 ? 'même heure' : Math.abs(diff) + ' h d\'écart'}</span>` : ''}</div>
   ${op ? `<button class="person" data-act="sheet" data-s="partner">${av(op, 'lg', true)}<b>${esc(nm(op))}</b><small>${esc(P(op).city || cityOf(P(op).tz))} · ${timeIn(P(op).tz)}</small></button>` : `<button class="person" data-act="share"><span class="av lg"><img src="assets/avatars/peeps-7.svg" style="filter:grayscale(1);opacity:.5"></span><b>?</b><small>Invite ton duo</small></button>`}</div>
   ${op ? `<div class="quick"><button class="btn" data-act="wizz">${ic('vibrate')}Wizz</button><button class="btn" data-act="tab" data-h="#/chat">${ic('chat')}Écrire</button><button class="btn" data-act="sheet" data-s="rdv">${ic('calplus')}Rendez-vous</button></div>` : ''}</section>`;
   if (!op) h += `<div class="card mt"><h2 class="h2">Invite ton duo</h2><p class="muted mt" style="font-weight:600">Envoie-lui ce code (ou le lien). Elle crée son compte, entre le code, et vous êtes connectés.</p><div class="code">${esc(S.code)}</div><div class="actions"><button class="btn primary" data-act="share">${ic('share')} Partager le lien</button></div></div>`;
   const rdv = nextRdv(); if (rdv) h += `<div class="next-rdv">${ic('cal')}<div class="grow"><small class="muted" style="font-weight:800">Prochain rendez-vous</small><b>${esc(fmtWhen(rdv.when, p.tz || myTz()))}</b><small class="muted">${rdv.game && WORLDS[rdv.game] ? WORLDS[rdv.game].name + ' · ' : ''}dans ${esc(ago(2 * now() - rdv.when).replace('il y a ', ''))}</small></div></div>`;
-  if (!isStandalone() && !LS.get('fuseau-noinstall')) h += `<div class="install">${ic('install')}<div class="grow"><b class="disp" style="font-size:17px">Installe Fuseau</b><small class="muted" style="display:block;font-weight:700">Sur ton écran d'accueil, comme une vraie appli.</small></div><button class="btn primary sm" data-act="sheet" data-s="install">Voir</button></div>`;
+  if (!isStandalone() && !LS.get('fuseau-noinstall')) h += `<div class="install">${ic('install')}<div class="grow"><b class="disp" style="font-size:17px">Installe Fuzo</b><small class="muted" style="display:block;font-weight:700">Sur ton écran d'accueil, comme une vraie appli.</small></div><button class="btn primary sm" data-act="sheet" data-s="install">Voir</button></div>`;
+  if (op && !S.prof.ntfy && !LS.get('fuzo-nontfy')) h += `<div class="install">${ic('bell')}<div class="grow"><b class="disp" style="font-size:17px">Active les notifications</b><small class="muted" style="display:block;font-weight:700">Pour savoir quand ${esc(nm(op))} t'écrit ou t'attend.</small></div><button class="btn primary sm" data-act="tab" data-h="#/profil">Activer</button></div>`;
   const live = S.games.filter(g => !g.over && G[g.type]);
   h += `<div class="sect"><h2>Parties en cours</h2>${live.length ? `<button class="link" data-act="tab" data-h="#/jeux">+ Nouvelle</button>` : ''}</div>`;
   if (!S.gamesLoaded) h += `<div class="empty">Chargement…</div>`;
@@ -248,7 +261,7 @@ function partieView(id) {
 }
 function chatView() {
   const op = partner(); const me = S.me; const p = S.prof;
-  let h = `<div class="chat-h">${op ? av(op, 'md', true) : ''}<div class="grow"><b>${op ? esc(nm(op)) : 'Messages'}</b><small class="${online(op) ? 'on' : ''}">${op ? (typing(op) ? 'écrit…' : statusOf(op) + (P(op).tz ? ` · ${timeIn(P(op).tz)} là-bas` : '')) : 'Invite ton duo pour discuter'}</small></div><button class="ib" data-act="sheet" data-s="rdv" aria-label="Rendez-vous">${ic('calplus')}</button></div><div class="msgs" id="msgs">`;
+  let h = `<div class="chat-h"><button class="ib" data-act="tab" data-h="#/" aria-label="Retour">${ic('back')}</button>${op ? av(op, 'md', true) : ''}<div class="grow"><b>${op ? esc(nm(op)) : 'Messages'}</b><small class="${online(op) ? 'on' : ''}">${op ? (typing(op) ? 'écrit…' : statusOf(op) + (P(op).tz ? ` · ${timeIn(P(op).tz)} là-bas` : '')) : 'Invite ton duo pour discuter'}</small></div><button class="ib" data-act="sheet" data-s="rdv" aria-label="Rendez-vous">${ic('calplus')}</button></div><div class="msgs" id="msgs">`;
   if (!S.msgs.length) h += `<div class="empty mt">Pas encore de message. Dis bonjour !</div>`;
   let lastDay = '';
   for (const m of S.msgs) {
@@ -269,11 +282,11 @@ function chatView() {
     else if (m.t === 'sys') h += `<div class="sysmsg" data-k="m-${m.id}">${ic('trophy')}<span>${esc(m.text)}</span></div>`;
     else if (m.t === 'wizz') h += `<div class="sysmsg" data-k="m-${m.id}">${ic('vibrate')}<span>${mine ? 'Tu as envoyé un Wizz' : `${esc(nm(m.from))} t'a envoyé un Wizz`} · ${t}</span></div>`;
   }
-  h += `</div><form class="composer" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><input class="field grow" name="t" id="msgIn" maxlength="500" autocomplete="off" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Message…'}" ${op ? '' : 'disabled'}><button class="btn primary sq" ${op ? '' : 'disabled'} aria-label="Envoyer">${ic('send')}</button></form>`;
+  h += `</div><div class="composer-bar"><form class="composer" data-form="msg"><button type="button" class="btn ghost sq" data-act="sheet" data-s="plus" aria-label="Plus">${ic('plus')}</button><input class="field grow" name="t" id="msgIn" maxlength="500" autocomplete="off" placeholder="${op ? 'Écris à ' + esc(nm(op)) + '…' : 'Message…'}" ${op ? '' : 'disabled'}><button class="btn primary sq" ${op ? '' : 'disabled'} aria-label="Envoyer">${ic('send')}</button></form></div>`;
   return { html: h, after: () => scrollChat(true), update: () => scrollChat(false) };
 }
 let lastMsgCount = 0;
-function scrollChat(force) { if (force || S.msgs.length !== lastMsgCount) { lastMsgCount = S.msgs.length; requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: force ? 'auto' : 'smooth' })); } }
+function scrollChat(force) { if (force || S.msgs.length !== lastMsgCount) { lastMsgCount = S.msgs.length; requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' })); } }
 function profileCard(uid) {
   const p = uid === S.me ? S.prof : P(uid); const tz = p.tz || (uid === S.me ? myTz() : '');
   const facts = [];
@@ -290,18 +303,24 @@ function profilView() {
   if (op) h += `<button class="item" style="box-shadow:none;border:0;padding:0" data-act="sheet" data-s="partner">${av(op, 'md', true)}<div class="grow"><b>${esc(nm(op))}</b><small>${esc(statusOf(op))}</small></div>${ic('next')}</button>`;
   else h += `<p style="font-weight:700">Ton duo n'a pas encore rejoint.</p>`;
   h += `<div class="set"><span>Code du duo</span><b class="disp" style="letter-spacing:.12em;color:var(--pri-d)">${esc(S.code)}</b></div><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="share">${ic('share')} Partager l'invitation</button></div></div>`;
+  h += ntfyCard();
   h += `<div class="sect"><h2>Réglages</h2></div><div class="card" style="padding:4px 16px">
   <div class="set"><span class="row">${ic('sound')} Sons</span><button class="tog ${S.set.sound ? 'on' : ''}" data-act="setting" data-k="sound"></button></div>
   <div class="set"><span class="row">${ic('vibrate')} Vibrations</span><button class="tog ${S.set.vib ? 'on' : ''}" data-act="setting" data-k="vib"></button></div>
-  <div class="set"><span class="row">${ic('bell')} Notifications</span><button class="tog ${S.set.notif ? 'on' : ''}" data-act="setting" data-k="notif"></button></div>
   <div class="set"><span class="row">${ic('install')} Installer l'appli</span><button class="btn ghost sm" data-act="sheet" data-s="install">Comment ?</button></div>
   <div class="set"><span class="row">${ic('info')} Crédits & licences</span><button class="btn ghost sm" data-act="sheet" data-s="credits">Voir</button></div></div>`;
   h += `<div class="actions mt2">${S.B.mode === 'demo' ? `<button class="btn ghost" data-act="resetdemo">${ic('trash')} Réinitialiser la démo</button>` : `<button class="btn ghost" data-act="logout">${ic('out')} Se déconnecter</button>`}<button class="btn ghost" data-act="leaveduo">${ic('door')} Quitter le duo</button></div>`;
   return h;
 }
+function ntfyCard() {
+  const t = S.prof.ntfy;
+  let h = `<div class="sect"><h2>Notifications</h2></div><div class="card">`;
+  if (!t) return h + `<div class="row">${ic('bell', 'big-ic')}<p style="font-weight:700">Reçois une notification sur ton téléphone quand ton duo t'écrit, t'invite ou que c'est à toi de jouer, même appli fermée.</p></div><div class="actions"><button class="btn primary" data-act="ntfyon">${ic('bell')} Activer</button></div></div>`;
+  return h + `<p style="font-weight:700">Fuzo t'envoie les notifications via l'appli gratuite <b>ntfy</b>.</p><div class="how" style="--w-acc:var(--pri);--w-tint:#f1edfd"><div>${ic('download')}<span>Installe <b>ntfy</b> : <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a></span></div><div>${ic('plus')}<span>Dans ntfy, touche <b>+</b> (s'abonner) et colle ton code :</span></div></div><div class="code small-code" data-act="ntfycopy">${esc(t)}</div><div class="actions"><button class="btn ghost sm" data-act="ntfycopy">${ic('copy')} Copier le code</button><button class="btn primary sm" data-act="ntfytest">${ic('bell')} Tester</button></div><div class="center mt"><button class="link" data-act="ntfyoff">Désactiver</button></div></div>`;
+}
 function authView() {
   const m = S.ui.auth || 'welcome';
-  let h = `<div class="auth"><div class="auth-hero">${HERO}</div><h1>Fuseau</h1><p class="sub">Des jeux à deux, peu importe les kilomètres<br>et les fuseaux horaires.</p>`;
+  let h = `<div class="auth"><div class="auth-hero">${HERO}</div><h1 class="wm-big">${WORDMARK}</h1><p class="sub">Des jeux à deux, peu importe les kilomètres<br>et les fuseaux horaires.</p>`;
   if (m === 'welcome') h += `<div class="col mt2"><button class="btn primary big block" data-act="auth" data-m="signup">Créer mon compte</button><button class="btn ghost big block" data-act="auth" data-m="login">J'ai déjà un compte</button></div>`;
   else {
     const t = { signup: ['Créer mon compte', 'Choisis un mot de passe (6 caractères min.)'], login: ['Connexion', 'Mot de passe'], reset: ['Mot de passe oublié', ''] }[m];
@@ -347,8 +366,8 @@ function sheetHTML() {
   }
   else if (s === 'plus') h = `<h2>Envoyer…</h2><div class="col mt"><button class="btn block" data-act="sheet" data-s="rdv">${ic('calplus')} Une proposition de rendez-vous</button><button class="btn block" data-act="sheet" data-s="invite">${ic('games')} Une invitation à jouer</button><button class="btn block" data-act="wizz">${ic('vibrate')} Un Wizz</button></div><div class="reacts">${H.reactBar()}</div>`;
   else if (s === 'invite') h = `<h2>Inviter à jouer</h2><div class="worlds mt">${ORDER.map(k => { const W = WORLDS[k]; return `<button class="wcard" data-act="launch" data-t="${k}"><div class="scene" style="background:${W.tint};height:80px">${W.scene}</div><div class="wt"><h3 style="font-size:16px">${esc(W.name)}</h3></div></button>`; }).join('')}</div>`;
-  else if (s === 'install') { const ios = /iphone|ipad|ipod/i.test(navigator.userAgent); h = `<h2>${ic('install')} Installer Fuseau</h2>${S.installEvt ? `<div class="actions"><button class="btn primary big block" data-act="install">${ic('download')} Installer maintenant</button></div>` : ''}<div class="how" style="--w-acc:var(--pri);--w-tint:#f1edfd">${ios ? `<div>${ic('share')}<span>Dans Safari, touche le bouton <b>Partager</b> en bas.</span></div><div>${ic('plus')}<span>Choisis <b>Sur l'écran d'accueil</b>.</span></div><div>${ic('check')}<span>Touche <b>Ajouter</b> : Fuseau apparaît comme une appli.</span></div>` : `<div>${ic('dots')}<span>Dans Chrome, ouvre le menu <b>⋮</b> en haut à droite.</span></div><div>${ic('download')}<span>Choisis <b>Installer l'application</b> (ou « Ajouter à l'écran d'accueil »).</span></div><div>${ic('check')}<span>Confirme : Fuseau s'ouvre en plein écran, comme une appli.</span></div>`}</div><div class="actions"><button class="btn ghost" data-act="noinstall">Ne plus afficher</button></div>`; }
-  else if (s === 'credits') h = `<h2>Crédits</h2><div class="col mt" style="font-weight:600;font-size:14.5px;line-height:1.5"><p><b>Avatars</b> : générés avec DiceBear. « Adventurer » de Lisa Wischofsky, « Big Smile » d'Ashley Seo et « Micah » de Micah Lanier (CC BY 4.0) ; « Open Peeps » de Pablo Stanley (CC0).</p><p><b>Icônes</b> : Phosphor Icons (licence MIT).</p><p><b>Polices</b> : Baloo 2 et Nunito (SIL Open Font License).</p><p><b>Sons</b> : Kenney (kenney.nl), starter kits sous licence MIT.</p><p><b>Illustrations des univers</b> : créées pour Fuseau.</p></div>`;
+  else if (s === 'install') { const ios = /iphone|ipad|ipod/i.test(navigator.userAgent); h = `<h2>${ic('install')} Installer Fuzo</h2>${S.installEvt ? `<div class="actions"><button class="btn primary big block" data-act="install">${ic('download')} Installer maintenant</button></div>` : ''}<div class="how" style="--w-acc:var(--pri);--w-tint:#f1edfd">${ios ? `<div>${ic('share')}<span>Dans Safari, touche le bouton <b>Partager</b> en bas.</span></div><div>${ic('plus')}<span>Choisis <b>Sur l'écran d'accueil</b>.</span></div><div>${ic('check')}<span>Touche <b>Ajouter</b> : Fuzo apparaît comme une appli.</span></div>` : `<div>${ic('dots')}<span>Dans Chrome, ouvre le menu <b>⋮</b> en haut à droite.</span></div><div>${ic('download')}<span>Choisis <b>Installer l'application</b> (ou « Ajouter à l'écran d'accueil »).</span></div><div>${ic('check')}<span>Confirme : Fuzo s'ouvre en plein écran, comme une appli.</span></div>`}</div><div class="actions"><button class="btn ghost" data-act="noinstall">Ne plus afficher</button></div>`; }
+  else if (s === 'credits') h = `<h2>Crédits</h2><div class="col mt" style="font-weight:600;font-size:14.5px;line-height:1.5"><p><b>Avatars</b> : générés avec DiceBear. « Adventurer » de Lisa Wischofsky, « Big Smile » d'Ashley Seo et « Micah » de Micah Lanier (CC BY 4.0) ; « Open Peeps » de Pablo Stanley (CC0).</p><p><b>Icônes</b> : Phosphor Icons (licence MIT).</p><p><b>Polices</b> : Baloo 2 et Nunito (SIL Open Font License).</p><p><b>Sons</b> : Kenney (kenney.nl), starter kits sous licence MIT.</p><p><b>Illustrations des univers</b> : créées pour Fuzo.</p></div>`;
   else if (s === 'confirm') { const c = S.ui.confirm || {}; h = `<h2>${esc(c.t)}</h2><p class="muted mt" style="font-weight:600">${esc(c.s)}</p><div class="actions"><button class="btn coral" data-act="confirmok">${esc(c.ok || 'Confirmer')}</button><button class="btn ghost" data-act="closesheet">Annuler</button></div>`; }
   if (!h) return '';
   return `<div class="ov" data-act="ovbg"><div class="sheet" data-k="sh-${s}">${h}</div></div>`;
@@ -381,7 +400,7 @@ function screen() {
   if (r === 'partie') { const v = partieView(routeArg()); return Object.assign(v, { k: 'partie-' + routeArg(), world: S.g && S.g.type, nav: false }); }
   if (r === 'monde') return { html: worldView(routeArg()), k: 'monde-' + routeArg(), world: routeArg(), nav: false };
   if (r === 'jeux') return { html: gamesView(), k: 'jeux', nav: true };
-  if (r === 'chat') return Object.assign(chatView(), { k: 'chat', nav: true });
+  if (r === 'chat') return Object.assign(chatView(), { k: 'chat', nav: false, chat: true });
   if (r === 'profil') return { html: profilView(), k: 'profil', nav: true };
   return { html: homeView(), k: 'home', nav: true };
 }
@@ -390,7 +409,7 @@ function render() { if (rq) return; rq = true; requestAnimationFrame(() => { rq 
 function doRender() {
   const sc = screen(); const view = $('#view');
   const W = sc.world && WORLDS[sc.world];
-  document.body.classList.toggle('inworld', !!W);
+  document.body.classList.toggle('inworld', !!W); document.body.classList.toggle('inchat', !!sc.chat);
   if (W) { const b = document.body.style; b.setProperty('--w-tint', W.tint); b.setProperty('--w-acc', W.accent); b.setProperty('--w-dark', W.dark); }
   const wrap = document.createElement('div'); wrap.innerHTML = `<div class="screen" data-k="${esc(sc.k)}">${sc.html}</div>`;
   const key = sc.k + '|' + (sc.key || '');
@@ -423,7 +442,7 @@ const ACT = {
   next: () => { const g = S.g; G[g.type].next(g); sfx('tap'); },
   teleok: () => G.tele.ok(S.g),
   devs: d => { const g = S.g; S.ui.dev = { k: g.id + g.round, s: +d.i }; sfx('tap'); render(); },
-  devg: d => { const g = S.g, u = S.ui.dev; if (!u) return; H.mine({ a: { r: g.round, v: { s: u.s, g: +d.i } } }); sfx('send'); },
+  devg: d => { const g = S.g, u = S.ui.dev; if (!u) return; H.mine({ a: { r: g.round, v: { s: u.s, g: +d.i } } }); sfx('send'); if (H.ans(g.players.find(x => x !== S.me)) === undefined) H.notify(`a répondu à la question ${g.round + 1}. À toi !`); },
   devback: () => { S.ui.dev = null; render(); },
   cqpick: d => G.cq.pick(S.g, +d.w),
   cqcol: d => { S.ui.cqc = d.c; sfx('tap'); render(); }, cqw: d => { S.ui.cqw = +d.w; sfx('tap'); render(); },
@@ -438,12 +457,16 @@ const ACT = {
   cashuffle: () => H.patch({ data: { order: shuffle(S.g.data.order), i: 0 } }),
   cadeck: () => { S.ui.cadeck = true; S.ui.setupType = 'cartes'; S.ui.sheet = 'setup'; render(); },
   react: d => { floatReact(d.e); sfx('tap'); S.B.set(duoPath('live/react'), { from: S.me, e: d.e, at: now() }); if (S.ui.sheet === 'plus') { S.ui.sheet = null; render(); } },
-  wizz: () => { if (!partner()) return; shakeScreen(); S.B.set(duoPath('live/wizz'), { from: S.me, at: now() }); S.B.add(duoPath('msgs'), { t: 'wizz', from: S.me, at: now() }); S.ui.sheet = null; render(); },
-  rdvans: d => { S.B.merge(duoPath(`msgs/${d.id}`), { st: d.v }); sfx(d.v === 'ok' ? 'coin' : 'tap'); if (d.v === 'ok') confetti(60); },
-  ics: d => { const m = S.msgs.find(x => x.id === d.id); if (!m) return; const f = t => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); const W = WORLDS[m.game]; const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fuseau//FR', 'BEGIN:VEVENT', `UID:${m.id}@fuseau`, `DTSTAMP:${f(now())}`, `DTSTART:${f(m.when)}`, `DTEND:${f(m.when + 3600000)}`, `SUMMARY:Fuseau avec ${nm(partner())}${W ? ' · ' + W.name : ''}`, 'BEGIN:VALARM', 'TRIGGER:-PT10M', 'ACTION:DISPLAY', 'DESCRIPTION:Fuseau', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'fuseau-rdv.ics'; a.click(); },
-  share: async () => { const url = location.origin + location.pathname + '?duo=' + S.code; const text = `Rejoins-moi sur Fuseau pour jouer ensemble ! Code du duo : ${S.code}`; try { if (navigator.share) { await navigator.share({ title: 'Fuseau', text, url }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(text + '\n' + url); toast('Lien copié !'); } catch (e) { toast('Code : ' + S.code); } },
+  wizz: () => { if (!partner()) return; shakeScreen(); S.B.set(duoPath('live/wizz'), { from: S.me, at: now() }); S.B.add(duoPath('msgs'), { t: 'wizz', from: S.me, at: now() }); { const op = partner(); if (op) pushTo(op, 'Fuzo', `${nm(S.me)} t'envoie un Wizz !`, '#/', true); } S.ui.sheet = null; render(); },
+  rdvans: d => { S.B.merge(duoPath(`msgs/${d.id}`), { st: d.v }); notifyPartner(`${nm(S.me)} a ${d.v === 'ok' ? 'accepté' : 'refusé'} ton rendez-vous`, '#/chat'); sfx(d.v === 'ok' ? 'coin' : 'tap'); if (d.v === 'ok') confetti(60); },
+  ics: d => { const m = S.msgs.find(x => x.id === d.id); if (!m) return; const f = t => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); const W = WORLDS[m.game]; const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fuzo//FR', 'BEGIN:VEVENT', `UID:${m.id}@fuseau`, `DTSTAMP:${f(now())}`, `DTSTART:${f(m.when)}`, `DTEND:${f(m.when + 3600000)}`, `SUMMARY:Fuzo avec ${nm(partner())}${W ? ' · ' + W.name : ''}`, 'BEGIN:VALARM', 'TRIGGER:-PT10M', 'ACTION:DISPLAY', 'DESCRIPTION:Fuzo', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'fuseau-rdv.ics'; a.click(); },
+  share: async () => { const url = location.origin + location.pathname + '?duo=' + S.code; const text = `Rejoins-moi sur Fuzo pour jouer ensemble ! Code du duo : ${S.code}`; try { if (navigator.share) { await navigator.share({ title: 'Fuzo', text, url }); return; } } catch (e) { return; } try { await navigator.clipboard.writeText(text + '\n' + url); toast('Lien copié !'); } catch (e) { toast('Code : ' + S.code); } },
   install: async () => { const e = S.installEvt; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { } S.installEvt = null; S.ui.sheet = null; render(); },
   noinstall: () => { try { LS.set('fuseau-noinstall', '1'); } catch (e) { } S.ui.sheet = null; render(); },
+  ntfyon: () => { const A = 'abcdefghijkmnpqrstuvwxyz23456789'; const t = 'fuzo-' + Array.from({ length: 10 }, () => A[Math.random() * A.length | 0]).join(''); S.B.merge(`users/${S.me}`, { ntfy: t }); sfx('coin'); },
+  ntfyoff: () => { S.B.merge(`users/${S.me}`, { ntfy: null }); },
+  ntfycopy: async () => { try { await navigator.clipboard.writeText(S.prof.ntfy); toast('Code copié !'); } catch (e) { toast(S.prof.ntfy); } },
+  ntfytest: () => { if (S.B.mode === 'demo') { toast('Les notifications marchent une fois Fuzo en ligne'); return; } pushTo(S.me, 'Fuzo', 'Ça marche ! Tu recevras ici les messages et invitations de ton duo.', '#/', true); toast('Notification de test envoyée'); },
   auth: d => { S.ui.auth = d.m; S.ui.err = ''; sfx('tap'); render(); },
   editprof: () => { S.ui.sheet = null; S.ui.pf = null; S.ui.editing = true; render(); },
   canceledit: () => { S.ui.editing = false; S.ui.pf = null; render(); },
@@ -457,13 +480,13 @@ const ACT = {
   dologout: () => S.B.signOut(),
   confirmok: () => { const a = S.ui.confirm && S.ui.confirm.a; S.ui.sheet = null; S.ui.confirm = null; render(); a && ACT[a](); },
   demoas: d => { S.B.switchUser(d.u); S.ui.sheet = null; S.done = new Set(); if (routeName() === 'partie') openGame(routeArg()); },
-  resetdemo: () => { S.B.resetDemo(); LS.del('fuseau-demo-seeded'); location.reload(); },
+  resetdemo: () => { S.B.resetDemo(); LS.del('fuzo-demo-seeded-v2'); location.reload(); },
 };
 const FORMS = {
   tele: f => { const v = f.v.value.trim(); if (v) G.tele.submit(S.g, v); },
   cq: f => { const v = f.v.value.trim(); if (!v) return; f.v.value = ''; G.cq.guess(S.g, v); },
-  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); },
-  rdv: f => { const when = new Date(`${f.d.value}T${f.h.value}`).getTime(); if (!when || when < now() - 60000) { toast('Choisis une date à venir'); return; } S.B.add(duoPath('msgs'), { t: 'rdv', from: S.me, when, game: f.g.value || null, note: f.n.value.trim().slice(0, 120), st: 'open', at: now() }); S.ui.sheet = null; sfx('send'); toast('Proposition envoyée'); go('#/chat'); },
+  msg: f => { const v = f.t.value.trim(); if (!v) return; f.t.value = ''; S.B.add(duoPath('msgs'), { t: 'text', from: S.me, text: v.slice(0, 500), at: now() }); sfx('send'); notifyPartner(v, '#/chat', nm(S.me)); },
+  rdv: f => { const when = new Date(`${f.d.value}T${f.h.value}`).getTime(); if (!when || when < now() - 60000) { toast('Choisis une date à venir'); return; } S.B.add(duoPath('msgs'), { t: 'rdv', from: S.me, when, game: f.g.value || null, note: f.n.value.trim().slice(0, 120), st: 'open', at: now() }); { const op = partner(); notifyPartner(`${nm(S.me)} te propose un rendez-vous : ${fmtWhen(when, op && P(op).tz)}`, '#/chat'); } S.ui.sheet = null; sfx('send'); toast('Proposition envoyée'); go('#/chat'); },
   signup: f => authDo(() => S.B.signUp(f.email.value.trim(), f.pw.value)),
   login: f => authDo(() => S.B.signIn(f.email.value.trim(), f.pw.value)),
   reset: f => authDo(async () => { await S.B.reset(f.email.value.trim()); S.ui.auth = 'login'; toast('E-mail envoyé ! Regarde ta boîte (et les spams).'); }),
@@ -510,12 +533,12 @@ setInterval(() => { if (!document.hidden && ['home', 'chat', 'profil'].includes(
 
 /* ================= démarrage ================= */
 async function seedDemo(B) {
-  if (LS.get('fuseau-demo-seeded')) return;
-  await B.set('users/demo-1', { name: 'Aye', avatar: { t: 'preset', id: 'adv-1' }, col: '#8d7bea', city: 'Lyon', tz: 'Europe/Paris', bio: 'Toujours partant pour une revanche', fav: 'p4', duo: 'DEMO42', seen: now() });
-  await B.set('users/demo-2', { name: 'Nala', avatar: { t: 'preset', id: 'adv-2' }, col: '#f0745f', city: 'Montréal', tz: 'America/Toronto', bio: 'Reine du Croquis', fav: 'cq', duo: 'DEMO42', seen: now() });
+  if (LS.get('fuzo-demo-seeded-v2')) return;
+  await B.set('users/demo-1', { name: 'Aye', avatar: { t: 'preset', id: 'smile-2' }, col: '#8d7bea', city: 'Lyon', tz: 'Europe/Paris', bio: 'Toujours partant pour une revanche', fav: 'p4', duo: 'DEMO42', seen: now() });
+  await B.set('users/demo-2', { name: 'Love', avatar: { t: 'preset', id: 'adv-2' }, col: '#f0745f', city: 'Ottawa', tz: 'America/Toronto', bio: 'Reine du Croquis', fav: 'cq', duo: 'DEMO42', seen: now() });
   await B.set('duos/DEMO42', { members: ['demo-1', 'demo-2'], at: now() });
-  await B.add('duos/DEMO42/msgs', { t: 'text', from: 'demo-2', text: 'Coucou ! On teste Fuseau ce soir ?', at: now() - 3600000 });
-  LS.set('fuseau-demo-seeded', '1');
+  await B.add('duos/DEMO42/msgs', { t: 'text', from: 'demo-2', text: 'Coucou ! On teste Fuzo ce soir ?', at: now() - 3600000 });
+  LS.set('fuzo-demo-seeded-v2', '1');
 }
 async function boot() {
   render();

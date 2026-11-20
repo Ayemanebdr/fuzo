@@ -15,7 +15,7 @@ export function deepMerge(t, s) {
 
 /* ================= Mode démo ================= */
 function demoBackend() {
-  const KEY = 'fuseau-demo-v1';
+  const KEY = 'fuzo-demo-v2';
   let docs = {};
   try { docs = JSON.parse(LS.get(KEY) || '{}'); } catch (e) {}
   const subs = new Set();

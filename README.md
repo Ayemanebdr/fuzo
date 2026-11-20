@@ -1,4 +1,4 @@
-# Fuseau — jeux à deux, à distance
+# Fuzo — jeux à deux, à distance
 
 Application mobile (PWA) pour jouer à deux, même à des milliers de kilomètres :
 7 jeux, un chat, des rendez-vous qui s'affichent à l'heure de chacun, des profils avec avatar ou photo.
@@ -37,4 +37,4 @@ Ces clés ne sont pas secrètes : c'est normal qu'elles soient dans le code. La 
 
 ## Crédits
 Avatars DiceBear (« Adventurer » et « Micah » CC BY 4.0, « Big Smile » CC BY 4.0, « Open Peeps » CC0) ·
-icônes Phosphor (MIT) · polices Baloo 2 et Nunito (OFL) · sons Kenney (MIT) · illustrations des univers faites pour Fuseau.
+icônes Phosphor (MIT) · polices Baloo 2 et Nunito (OFL) · sons Kenney (MIT) · illustrations des univers faites pour Fuzo.

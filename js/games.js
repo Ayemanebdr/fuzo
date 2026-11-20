@@ -19,6 +19,7 @@ export function makeGames(H) {
   const waitFor = (uid, txt) => `<div class="status">${esc(txt || H.nm(uid) + ' réfléchit')}<span class="typing"><i></i><i></i><i></i></span></div>`;
   const verdict = (cls, icon, txt) => `<div class="verdict ${cls}">${H.ic(icon)}<span>${txt}</span></div>`;
   const G = {};
+  const turnMsg = (g, over, name) => H.notify(over ? `vient de finir la partie de ${name}` : `a joué. À toi de jouer au ${name} !`);
 
   /* ---------- Télépathie ---------- */
   G.tele = {
@@ -42,7 +43,7 @@ export function makeGames(H) {
       }
       return h;
     },
-    submit(g, v) { H.mine({ a: { r: g.round, v: v.slice(0, 30) } }); H.sfx('send'); },
+    submit(g, v) { H.mine({ a: { r: g.round, v: v.slice(0, 30) } }); H.sfx('send'); if (H.ans(op(g)) === undefined) H.notify(`a répondu à la manche ${g.round + 1}. À toi !`); },
     auto(g) {
       const o = op(g), r = g.round;
       if (g.phase === 'answer' && H.ans(H.me()) !== undefined && H.ans(o) !== undefined) H.once(`tr:${g.id}:${r}`, H.lead(g) ? 0 : 2500, () => { const n = H.g(); if (n && n.id === g.id && n.round === r && n.phase === 'answer') H.patch({ phase: 'reveal', data: { hist: { [r]: { [H.me()]: H.ans(H.me()), [o]: H.ans(o) } } } }); });
@@ -161,7 +162,7 @@ export function makeGames(H) {
       }
     },
     update(g) { const el = document.getElementById('cqG'); if (el) { const nh = this.glist(g); if (el.innerHTML !== nh) el.innerHTML = nh; } if (H.ui.cq && H.ui.cq.redraw && (this.drawer(g) !== H.me() || g.phase !== 'draw')) H.ui.cq.redraw(); },
-    pick(g, i) { const w = CQW[i]; H.setDraw({ r: g.round, s: [] }); H.patch({ phase: 'draw', data: { w: obf(w), end: Date.now() + this.T * 1000 } }); H.sfx('coin'); },
+    pick(g, i) { H.notify('dessine pour toi : viens deviner !'); const w = CQW[i]; H.setDraw({ r: g.round, s: [] }); H.patch({ phase: 'draw', data: { w: obf(w), end: Date.now() + this.T * 1000 } }); H.sfx('coin'); },
     guess(g, v) {
       const L = H.pdoc(H.me()).gs; const l = L && L.r === g.round ? [...L.l] : []; l.push(v.slice(0, 40)); H.mine({ gs: { r: g.round, l: l.slice(-40) } });
       const w = deobf(g.data.w), a = norm(v), b = norm(w);
@@ -207,7 +208,7 @@ export function makeGames(H) {
       else if (c === 'ENTER') {
         if (u.cur.length < 5) { u.bad = true; H.sfx('fail'); H.render(); return; }
         const w = deobf(g.data.w); const m = this.marks(u.cur, w); const rows = [...my.rows, { g: u.cur, m }]; const ok = m === 'ggggg';
-        u.cur = ''; u.seen = rows.length - 1; H.mine({ w: { rows, done: ok || rows.length >= 6, ok } }); H.sfx(ok ? 'win' : 'place'); if (ok) H.confetti(120);
+        u.cur = ''; u.seen = rows.length - 1; H.mine({ w: { rows, done: ok || rows.length >= 6, ok } }); if (ok || rows.length >= 6) H.notify(ok ? `a trouvé le mot en ${rows.length} essai${rows.length > 1 ? 's' : ''}. À toi !` : 'a terminé le Mot Mystère. À toi !'); H.sfx(ok ? 'win' : 'place'); if (ok) H.confetti(120);
       } else if (/^[A-Z]$/.test(c) && u.cur.length < 5) { u.cur += c; H.sfx('key'); }
       H.render();
     },
@@ -250,7 +251,7 @@ export function makeGames(H) {
       else if (!m.includes('.')) { over = true; const cx = m.filter(x => x === 'X').length, co = m.filter(x => x === 'O').length, ox = d.X, oo = g.players.find(p => p !== ox); winner = cx > co ? ox : co > cx ? oo : null; }
       H.setG(Object.assign({}, g, { data: d, turn: over ? null : o, over, winner, phase: over ? 'over' : 'play' }));
       H.sfx(wonMini ? 'coin' : 'place'); if (wonMini && !over) H.confetti(40);
-      if (over) H.record(g, { w: winner });
+      if (over) H.record(g, { w: winner }); turnMsg(g, over, 'Morpion Ultime');
     },
     over(g) { const o = op(g), w = g.winner; return { icon: w === H.me() ? 'trophy' : w ? 'medal' : 'handshake', t: w === H.me() ? 'Victoire stratégique !' : w ? `${H.nm(o)} gagne !` : 'Match nul !', sub: 'Morpion Ultime', win: w === H.me(), board: true }; },
     summary(g) { return g.turn === H.me() ? 'À toi de jouer' : `Au tour de ${H.nm(op(g))}`; },
@@ -278,7 +279,7 @@ export function makeGames(H) {
       const line = p4line(d.b, idx, s); const o = op(g); let over = false, winner = null;
       if (line) { over = true; winner = H.me(); d.line = line; } else if (!d.b.includes('.')) over = true;
       H.setG(Object.assign({}, g, { data: d, turn: over ? null : o, over, winner, phase: over ? 'over' : 'play' })); setTimeout(() => H.sfx('land'), 380);
-      if (over) H.record(g, { w: winner });
+      if (over) H.record(g, { w: winner }); turnMsg(g, over, 'Puissance 4');
     },
     over(g) { const o = op(g), w = g.winner; return { icon: w === H.me() ? 'trophy' : w ? 'medal' : 'handshake', t: w === H.me() ? 'Puissance… TOI !' : w ? `${H.nm(o)} aligne 4 !` : 'Grille pleine, égalité !', sub: 'Puissance 4', win: w === H.me(), board: true }; },
     summary(g) { return g.turn === H.me() ? 'À toi de jouer' : `Au tour de ${H.nm(op(g))}`; },

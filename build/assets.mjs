@@ -12,20 +12,21 @@ fs.mkdirSync(A('avatars'), { recursive: true });
 
 /* ---------- Avatars (DiceBear) ---------- */
 const BG = ['ffd8c9', 'ffe9b0', 'cdeee6', 'dcd5ff', 'cfe6fb', 'ffd6e6'];
+const pick = (a, i) => [a[i % a.length]];
 const STYLES = {
-  adv: { s: col.adventurer, seeds: ['Aye', 'Nala', 'Kofi', 'Maya', 'Zoe', 'Ilan', 'Sena', 'Tobi', 'Lina', 'Rio', 'Ama', 'Noe'] },
-  smile: { s: col.bigSmile, seeds: ['Sun', 'Moon', 'Star', 'Sky', 'Rain', 'Leaf', 'Wave', 'Fire', 'Snow', 'Wind', 'Sand', 'Rock'] },
-  micah: { s: col.micah, seeds: ['Abla', 'Yao', 'Fifi', 'Jojo', 'Kemi', 'Bola', 'Dede', 'Lulu', 'Momo', 'Nana', 'Pipo', 'Titi'] },
-  peeps: { s: col.openPeeps, seeds: ['Lyon', 'Cotonou', 'Montreal', 'Toronto', 'Dakar', 'Paris', 'Abidjan', 'Lome', 'Quebec', 'Accra', 'Lagos', 'Ottawa'] },
+  adv: { s: col.adventurer, n: 12, o: i => ({ skinColor: pick(['763900', '9e5622'], i), hairColor: pick(['0e0e0e', '562306', '6a4e35', '0e0e0e'], i), hair: pick(['short01', 'long03', 'short05', 'long12', 'short10', 'long19', 'short13', 'long22', 'short16', 'long08', 'short19', 'long25'], i) }) },
+  smile: { s: col.bigSmile, n: 12, o: i => ({ skinColor: pick(['643d19', '8c5a2b', 'a47539', '643d19'], i), hair: pick(['froBun', 'shavedHead', 'braids', 'curlyShortHair', 'curlyBob', 'mohawk', 'bunHair', 'halfShavedHead', 'braids', 'shortHair', 'froBun', 'curlyShortHair'], i), hairColor: pick(['220f00', '3a1a00'], i), accessoriesProbability: 15, accessories: ['catEars', 'glasses', 'faceMask', 'clownNose'].slice(1, 2) }) },
+  micah: { s: col.micah, n: 12, o: i => ({ baseColor: pick(['77311d', 'ac6651', '77311d'], i), hair: pick(['fonze', 'turban', 'mrT', 'pixie', 'full', 'mrClean', 'dougFunny', 'full'], i), hairColor: pick(['000000', '77311d', '000000'], i), mouth: pick(['smile', 'laughing', 'smirk', 'smile'], i), eyebrows: pick(['up', 'eyelashesUp'], i) }) },
+  peeps: { s: col.openPeeps, n: 12, o: i => ({ skinColor: pick(['694d3d', 'ae5d29'], i), head: pick(['afro', 'bantuKnots', 'cornrows', 'twists', 'dreads1', 'longAfro', 'flatTop', 'twists2', 'cornrows2', 'turban', 'dreads2', 'bun'], i), face: pick(['smile', 'smileBig', 'cute', 'lovingGrin1', 'cheeky', 'smileLOL', 'calm', 'smileTeethGap', 'eatingHappy', 'lovingGrin2'], i) }) },
 };
 const list = [];
-for (const [k, { s, seeds }] of Object.entries(STYLES)) {
-  seeds.forEach((seed, i) => {
-    const svg = createAvatar(s, { seed, backgroundColor: [BG[i % BG.length]], radius: 0, scale: k === 'peeps' ? 90 : 100 }).toString();
+for (const [k, { s, n, o }] of Object.entries(STYLES)) {
+  for (let i = 0; i < n; i++) {
+    const svg = createAvatar(s, Object.assign({ seed: k + i, backgroundColor: [BG[i % BG.length]], radius: 0 }, o(i))).toString();
     const id = `${k}-${i + 1}`;
     fs.writeFileSync(A(`avatars/${id}.svg`), svg);
     list.push(id);
-  });
+  }
 }
 fs.writeFileSync(path.join(ROOT, 'js', 'avatars.js'), `export const AVATARS = ${JSON.stringify(list)};\n`);
 

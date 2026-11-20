@@ -272,7 +272,10 @@ label.lbl{display:block;font-weight:800;font-size:14px;margin:16px 0 7px}
 .mcard .actions{justify-content:flex-start;margin-top:10px}
 .sysmsg{align-self:center;display:flex;align-items:center;gap:7px;background:#fff;border-radius:99px;padding:6px 14px;font-size:13.5px;font-weight:700;box-shadow:var(--sh);color:var(--muted);max-width:92%;text-align:center}
 .sysmsg .ic{color:var(--mustard);font-size:18px}
-.composer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + var(--safe-b));width:min(528px,calc(100% - 24px));display:flex;gap:8px;align-items:flex-end;z-index:20}
+.composer-bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:linear-gradient(to bottom,rgba(251,247,240,0),var(--bg) 22%);padding:16px 12px calc(10px + var(--safe-b))}
+.composer{max-width:536px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+body.inchat #app{padding-bottom:calc(96px + var(--safe-b))}
+.msgs{padding-bottom:6px!important}
 .composer .field{border-radius:22px;padding:12px 16px;box-shadow:var(--sh)}
 .composer .btn{border-radius:18px;padding:12px 14px}
 .rdv-when{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;margin-top:4px}
@@ -339,3 +342,16 @@ body.has-demo #app{padding-top:calc(48px + var(--safe-t))}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 
 body.has-demo .chat-h{padding-top:calc(46px + var(--safe-t))}
+
+/* logotype Fuzo */
+.wm{display:inline-flex;align-items:center;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.03em;line-height:1}
+.wm-f{color:var(--ink)}
+.wm-z{color:var(--coral);display:inline-block;transform:rotate(-8deg) translateY(-1px);margin:0 1px;text-shadow:2px 2px 0 rgba(42,36,64,.12)}
+.wm-o{display:inline-grid;place-items:center;width:.62em;height:.62em;margin-left:2px;margin-top:.16em;border-radius:50%;border:.085em solid var(--ink);background:linear-gradient(90deg,var(--bg) 50%,var(--pri) 50%);position:relative}
+.wm-o i{width:.16em;height:.16em;border-radius:50%;background:var(--ink);position:absolute;left:24%;top:38%;box-shadow:.27em 0 0 #fff}
+.wm-big .wm{font-size:58px}
+.auth h1.wm-big{display:flex;justify-content:center}
+
+.small-code{font-size:20px;letter-spacing:.04em;cursor:pointer;word-break:break-all}
+.big-ic{font-size:34px;color:var(--pri)}
+.how a{color:var(--pri-d);font-weight:800}

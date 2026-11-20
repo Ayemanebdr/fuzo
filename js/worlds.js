@@ -98,5 +98,5 @@ export const HERO = `<svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid me
 <path d="M90 150Q200 0 310 150" fill="none" stroke="${K}" stroke-width="3" stroke-dasharray="7 8"><animate attributeName="stroke-dashoffset" values="30;0" dur="1.2s" repeatCount="indefinite"/></path>
 <g><animateMotion dur="5s" repeatCount="indefinite" path="M90 150Q200 0 310 150" rotate="auto"/><path d="M-12 0l22-4 4 4-4 4zM-2 -2l-4-10h5l7 10zM-2 2l-4 10h5l7-10z" fill="#f0745f" stroke="${K}" stroke-width="2" stroke-linejoin="round"/></g>
 <g transform="translate(62 150)"><circle r="26" fill="#f0745f" stroke="${K}" stroke-width="3"/><text y="7" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="16" fill="#fff">LYON</text></g>
-<g transform="translate(338 150)"><circle r="26" fill="#3bb5a0" stroke="${K}" stroke-width="3"/><path d="M0 -14l3 7 6-3-2 8 6 2-9 6 1 5h-10l1-5-9-6 6-2-2-8 6 3z" fill="#fff"/></g>
+<g transform="translate(338 150)"><circle r="26" fill="#3bb5a0" stroke="${K}" stroke-width="3"/><text y="5" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="11" fill="#fff">OTTAWA</text></g>
 ${spark(200, 40, 9, '#f3b94d', 2)}${spark(250, 200, 7, '#ef8fb3', 1.6)}${spark(140, 196, 6, '#8d7bea', 2.4)}</svg>`;
